@@ -167,10 +167,14 @@
         // Initialize page
         document.addEventListener('DOMContentLoaded', async () => {
             Utils.updateNavbar();
-            loadCategories();
-            loadFeaturedProducts();
-            loadProducts();
             initSearchDropdown();
+
+            // Load all data in parallel for faster page load
+            await Promise.all([
+                loadCategories(),
+                loadFeaturedProducts(),
+                loadProducts()
+            ]);
         });
 
         // Initialize search dropdown

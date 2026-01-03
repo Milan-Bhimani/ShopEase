@@ -10,6 +10,27 @@ const API_BASE_URL = '/api';
 let authToken = localStorage.getItem('authToken');
 let currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
 
+// Simple cache for GET requests (5 minute TTL)
+const apiCache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+function getCached(key) {
+    const cached = apiCache.get(key);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+        return cached.data;
+    }
+    apiCache.delete(key);
+    return null;
+}
+
+function setCache(key, data) {
+    apiCache.set(key, { data, timestamp: Date.now() });
+}
+
+function clearCache() {
+    apiCache.clear();
+}
+
 /**
  * Make an API request
  */
@@ -240,24 +261,42 @@ const ProductsAPI = {
     },
 
     /**
-     * Get featured products
+     * Get featured products (cached)
      */
     async getFeatured(limit = 10) {
-        return apiRequest(`/products/featured?limit=${limit}`);
+        const cacheKey = `featured_${limit}`;
+        const cached = getCached(cacheKey);
+        if (cached) return cached;
+
+        const data = await apiRequest(`/products/featured?limit=${limit}`);
+        setCache(cacheKey, data);
+        return data;
     },
 
     /**
-     * Get product categories
+     * Get product categories (cached)
      */
     async getCategories() {
-        return apiRequest('/products/categories');
+        const cacheKey = 'categories';
+        const cached = getCached(cacheKey);
+        if (cached) return cached;
+
+        const data = await apiRequest('/products/categories');
+        setCache(cacheKey, data);
+        return data;
     },
 
     /**
-     * Get single product by ID
+     * Get single product by ID (cached)
      */
     async getProduct(productId) {
-        return apiRequest(`/products/${productId}`);
+        const cacheKey = `product_${productId}`;
+        const cached = getCached(cacheKey);
+        if (cached) return cached;
+
+        const data = await apiRequest(`/products/${productId}`);
+        setCache(cacheKey, data);
+        return data;
     },
 };
 

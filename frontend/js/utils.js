@@ -77,6 +77,7 @@ function createProductCard(product) {
         <div class="col-6 col-md-4 col-lg-3 mb-4">
             <div class="product-card card h-100" onclick="window.location.href='/product.html?id=${product.id}'">
                 <img src="${thumbnail}" class="card-img-top" alt="${product.name}"
+                     loading="lazy"
                      onerror="this.src='https://via.placeholder.com/200x200?text=No+Image'">
                 <div class="card-body">
                     <h6 class="product-title">${product.name}</h6>
