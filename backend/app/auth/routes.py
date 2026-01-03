@@ -318,6 +318,7 @@ async def login(credentials: UserLogin) -> Dict[str, Any]:
             "first_name": user.get("first_name", ""),
             "last_name": user.get("last_name", ""),
             "phone": user.get("phone", ""),
+            "is_admin": user.get("is_admin", False),
         }
     }
 
@@ -668,5 +669,6 @@ async def login_with_otp(request: OTPLoginRequest) -> Dict[str, Any]:
             "first_name": user.get("first_name", ""),
             "last_name": user.get("last_name", ""),
             "phone": user.get("phone", ""),
+            "is_admin": user.get("is_admin", False),
         }
     }
