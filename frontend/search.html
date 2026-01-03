@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <title>Search Results - ShopEase</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="/css/styles.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-custom sticky-top">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="bi bi-bag-heart-fill me-2"></i>ShopEase
+            </a>
+
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <div class="search-bar mx-auto position-relative">
+                    <form class="d-flex" onsubmit="handleSearch(event)">
+                        <input class="form-control" type="search" placeholder="Search for products, brands and more" id="search-input" autocomplete="off">
+                        <button class="btn btn-warning" type="submit">
+                            <i class="bi bi-search"></i>
+                        </button>
+                    </form>
+                    <div id="search-dropdown" class="search-dropdown" style="display: none;"></div>
+                </div>
+
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item" id="auth-buttons">
+                        <a class="nav-link" href="/login.html">
+                            <i class="bi bi-person me-1"></i>Login
+                        </a>
+                    </li>
+                    <li class="nav-item dropdown" id="user-menu" style="display: none;">
+                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                            <i class="bi bi-person-circle me-1"></i>
+                            <span id="user-name">User</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="/profile.html"><i class="bi bi-person me-2"></i>My Profile</a></li>
+                            <li><a class="dropdown-item" href="/profile.html#orders"><i class="bi bi-box me-2"></i>Orders</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="#" onclick="Utils.handleLogout()"><i class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link position-relative" href="/cart.html">
+                            <i class="bi bi-cart3 me-1"></i>Cart
+                            <span class="badge bg-warning cart-badge" id="cart-badge" style="display: none;">0</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container py-4">
+        <!-- Breadcrumb -->
+        <nav aria-label="breadcrumb" class="mb-3">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/">Home</a></li>
+                <li class="breadcrumb-item active" id="breadcrumb-search">Search Results</li>
+            </ol>
+        </nav>
+
+        <!-- Search Header -->
+        <div class="bg-white p-3 rounded border mb-4">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                    <h5 class="mb-1" id="search-title">Search Results</h5>
+                    <small class="text-muted" id="results-count">Loading...</small>
+                </div>
+                <div class="d-flex gap-2 align-items-center">
+                    <label class="text-muted small me-2">Sort by:</label>
+                    <select class="form-select form-select-sm" id="sort-select" style="width: auto;" onchange="handleSort()">
+                        <option value="">Relevance</option>
+                        <option value="price_low">Price: Low to High</option>
+                        <option value="price_high">Price: High to Low</option>
+                        <option value="name">Name</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search Results List View -->
+        <div class="search-results-list" id="search-results">
+            <!-- Results loaded dynamically -->
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Load More -->
+        <div class="text-center mt-4" id="load-more-container" style="display: none;">
+            <button class="btn btn-outline-primary" onclick="loadMoreResults()">
+                Load More Products
+            </button>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p class="text-center mb-0">&copy; 2024 ShopEase. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/api.js"></script>
+    <script src="/js/utils.js"></script>
+    <script>
+        let searchQuery = '';
+        let currentPage = 1;
+        let hasMore = false;
+        let allProducts = [];
+        let searchTimeout = null;
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', async () => {
+            Utils.updateNavbar();
+            initSearchDropdown();
+
+            // Get search query from URL
+            const params = new URLSearchParams(window.location.search);
+            searchQuery = params.get('q') || '';
+
+            if (searchQuery) {
+                document.getElementById('search-input').value = searchQuery;
+                document.getElementById('search-title').textContent = `Search results for "${searchQuery}"`;
+                document.getElementById('breadcrumb-search').textContent = `"${searchQuery}"`;
+                loadSearchResults();
+            } else {
+                document.getElementById('search-results').innerHTML = `
+                    <div class="text-center py-5">
+                        <i class="bi bi-search display-1 text-muted"></i>
+                        <h5 class="mt-3">Enter a search term</h5>
+                        <p class="text-muted">Use the search bar above to find products</p>
+                    </div>
+                `;
+                document.getElementById('results-count').textContent = '';
+            }
+        });
+
+        // Initialize search dropdown
+        function initSearchDropdown() {
+            const searchInput = document.getElementById('search-input');
+            const dropdown = document.getElementById('search-dropdown');
+
+            searchInput.addEventListener('input', (e) => {
+                const query = e.target.value.trim();
+                if (searchTimeout) clearTimeout(searchTimeout);
+
+                if (query.length < 1) {
+                    dropdown.style.display = 'none';
+                    return;
+                }
+
+                searchTimeout = setTimeout(() => {
+                    showSearchSuggestions(query);
+                }, 300);
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.search-bar')) {
+                    dropdown.style.display = 'none';
+                }
+            });
+        }
+
+        // Highlight matching text
+        function highlightMatch(text, query) {
+            if (!query) return text;
+            const idx = text.toLowerCase().indexOf(query.toLowerCase());
+            if (idx === -1) return text;
+            return text.slice(0, idx) + '<strong>' + text.slice(idx, idx + query.length) + '</strong>' + text.slice(idx + query.length);
+        }
+
+        // Show search suggestions - Google/Flipkart style
+        async function showSearchSuggestions(query) {
+            const dropdown = document.getElementById('search-dropdown');
+
+            try {
+                const response = await API.Products.getProducts({ search: query, perPage: 8 });
+                const products = response.products;
+
+                if (products.length === 0) {
+                    dropdown.innerHTML = '<div class="search-dropdown-header">No products found</div>';
+                    dropdown.style.display = 'block';
+                    return;
+                }
+
+                const suggestions = products.slice(0, 6);
+                let html = '<div class="search-dropdown-header">Suggestions</div>';
+
+                suggestions.forEach(p => {
+                    html += `
+                        <a href="/product.html?id=${p.id}" class="search-suggestion">
+                            <i class="bi bi-search"></i>
+                            <span class="suggestion-text">${highlightMatch(p.name, query)}</span>
+                            <span class="suggestion-category">in ${p.category}</span>
+                            <i class="bi bi-arrow-up-left arrow-icon"></i>
+                        </a>
+                    `;
+                });
+
+                dropdown.innerHTML = html;
+                dropdown.style.display = 'block';
+            } catch (error) {
+                console.error('Search error:', error);
+                dropdown.style.display = 'none';
+            }
+        }
+
+        // Load search results
+        async function loadSearchResults(append = false) {
+            const container = document.getElementById('search-results');
+            const loadMoreContainer = document.getElementById('load-more-container');
+
+            if (!append) {
+                container.innerHTML = `
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                `;
+                currentPage = 1;
+                allProducts = [];
+            }
+
+            try {
+                const response = await API.Products.getProducts({
+                    search: searchQuery,
+                    page: currentPage,
+                    perPage: 10
+                });
+
+                const products = response.products;
+                allProducts = append ? [...allProducts, ...products] : products;
+                hasMore = response.has_more;
+
+                document.getElementById('results-count').textContent =
+                    `${response.total} product${response.total !== 1 ? 's' : ''} found`;
+
+                loadMoreContainer.style.display = hasMore ? 'block' : 'none';
+
+                if (allProducts.length === 0) {
+                    container.innerHTML = `
+                        <div class="text-center py-5">
+                            <i class="bi bi-search display-1 text-muted"></i>
+                            <h5 class="mt-3">No products found</h5>
+                            <p class="text-muted">Try a different search term or browse our categories</p>
+                            <a href="/" class="btn btn-primary mt-2">Browse Products</a>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const html = allProducts.map(p => createListItem(p)).join('');
+                container.innerHTML = html;
+
+            } catch (error) {
+                container.innerHTML = `
+                    <div class="text-center py-5">
+                        <i class="bi bi-exclamation-circle display-1 text-danger"></i>
+                        <h5 class="mt-3">Error loading results</h5>
+                        <p class="text-muted">${error.message}</p>
+                        <button class="btn btn-primary mt-2" onclick="loadSearchResults()">Try Again</button>
+                    </div>
+                `;
+            }
+        }
+
+        // Create list item HTML
+        function createListItem(product) {
+            const discount = product.original_price && product.original_price > product.price
+                ? Math.round((1 - product.price / product.original_price) * 100)
+                : 0;
+
+            return `
+                <div class="product-list-item">
+                    <a href="/product.html?id=${product.id}">
+                        <img src="${product.thumbnail || 'https://via.placeholder.com/150'}" alt="${product.name}">
+                    </a>
+                    <div class="product-info">
+                        <a href="/product.html?id=${product.id}" class="text-decoration-none">
+                            <h6 class="product-title">${product.name}</h6>
+                        </a>
+                        <p class="product-description">${product.description || ''}</p>
+                        <div class="mb-2">
+                            ${product.rating ? `
+                                <span class="rating">
+                                    <i class="bi bi-star-fill"></i> ${product.rating}
+                                </span>
+                                <span class="text-muted ms-2">(${product.review_count || 0} reviews)</span>
+                            ` : ''}
+                        </div>
+                        <div class="d-flex align-items-center flex-wrap gap-2">
+                            <span class="product-price">${Utils.formatPrice(product.price)}</span>
+                            ${product.original_price && product.original_price > product.price ? `
+                                <span class="original-price">${Utils.formatPrice(product.original_price)}</span>
+                                <span class="discount-badge">${discount}% off</span>
+                            ` : ''}
+                        </div>
+                        <div class="mt-2">
+                            <span class="badge bg-light text-dark">${product.category}</span>
+                            ${product.brand ? `<span class="badge bg-light text-dark ms-1">${product.brand}</span>` : ''}
+                        </div>
+                    </div>
+                    <div class="product-actions">
+                        <button class="btn btn-cart w-100" onclick="addToCart('${product.id}')">
+                            <i class="bi bi-cart-plus me-1"></i>Add to Cart
+                        </button>
+                        <a href="/product.html?id=${product.id}" class="btn btn-outline-primary w-100">
+                            View Details
+                        </a>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Load more results
+        function loadMoreResults() {
+            currentPage++;
+            loadSearchResults(true);
+        }
+
+        // Handle search
+        function handleSearch(e) {
+            e.preventDefault();
+            const query = document.getElementById('search-input').value.trim();
+            if (query) {
+                document.getElementById('search-dropdown').style.display = 'none';
+                window.location.href = '/search.html?q=' + encodeURIComponent(query);
+            }
+        }
+
+        // Handle sort
+        function handleSort() {
+            const sort = document.getElementById('sort-select').value;
+
+            if (sort === 'price_low') {
+                allProducts.sort((a, b) => a.price - b.price);
+            } else if (sort === 'price_high') {
+                allProducts.sort((a, b) => b.price - a.price);
+            } else if (sort === 'name') {
+                allProducts.sort((a, b) => a.name.localeCompare(b.name));
+            }
+
+            const container = document.getElementById('search-results');
+            container.innerHTML = allProducts.map(p => createListItem(p)).join('');
+        }
+
+        // Add to cart
+        async function addToCart(productId) {
+            if (!API.isAuthenticated()) {
+                Utils.showToast('Please login to add items to cart', 'warning');
+                window.location.href = '/login.html?redirect=' + encodeURIComponent(window.location.href);
+                return;
+            }
+
+            try {
+                await API.Cart.addItem(productId, 1);
+                Utils.showToast('Product added to cart!');
+                Utils.updateCartBadge();
+            } catch (error) {
+                Utils.showToast(error.message, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

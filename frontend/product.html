@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <title>Product Details - ShopEase</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="/css/styles.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-custom sticky-top">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="bi bi-bag-heart-fill me-2"></i>ShopEase
+            </a>
+
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item" id="auth-buttons">
+                        <a class="nav-link" href="/login.html">
+                            <i class="bi bi-person me-1"></i>Login
+                        </a>
+                    </li>
+                    <li class="nav-item dropdown" id="user-menu" style="display: none;">
+                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                            <i class="bi bi-person-circle me-1"></i>
+                            <span id="user-name">User</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="/profile.html"><i class="bi bi-person me-2"></i>My Profile</a></li>
+                            <li><a class="dropdown-item" href="/profile.html#orders"><i class="bi bi-box me-2"></i>Orders</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="#" onclick="Utils.handleLogout()"><i class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link position-relative" href="/cart.html">
+                            <i class="bi bi-cart3 me-1"></i>Cart
+                            <span class="badge bg-warning cart-badge" id="cart-badge" style="display: none;">0</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Breadcrumb -->
+    <div class="bg-white border-bottom py-2">
+        <div class="container">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0 small">
+                    <li class="breadcrumb-item"><a href="/" class="text-decoration-none">Home</a></li>
+                    <li class="breadcrumb-item"><a href="/" class="text-decoration-none" id="breadcrumb-category">Products</a></li>
+                    <li class="breadcrumb-item active" id="breadcrumb-product">Loading...</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="container py-4">
+        <div class="row" id="product-content">
+            <!-- Product loaded dynamically -->
+            <div class="col-12 text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-3 col-6 mb-4">
+                    <h6>ABOUT</h6>
+                    <a href="#">Contact Us</a>
+                    <a href="#">About Us</a>
+                </div>
+                <div class="col-md-3 col-6 mb-4">
+                    <h6>HELP</h6>
+                    <a href="#">Payments</a>
+                    <a href="#">Shipping</a>
+                    <a href="#">FAQ</a>
+                </div>
+                <div class="col-md-3 col-6 mb-4">
+                    <h6>POLICY</h6>
+                    <a href="#">Return Policy</a>
+                    <a href="#">Terms of Use</a>
+                </div>
+                <div class="col-md-3 col-6 mb-4">
+                    <h6>SOCIAL</h6>
+                    <a href="#"><i class="bi bi-facebook me-2"></i>Facebook</a>
+                    <a href="#"><i class="bi bi-twitter me-2"></i>Twitter</a>
+                </div>
+            </div>
+            <hr class="border-secondary">
+            <p class="text-center mb-0">&copy; 2024 ShopEase. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/api.js"></script>
+    <script src="/js/utils.js"></script>
+    <script>
+        let product = null;
+        let selectedQuantity = 1;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            Utils.updateNavbar();
+
+            const productId = Utils.getUrlParam('id');
+            if (!productId) {
+                window.location.href = '/';
+                return;
+            }
+
+            loadProduct(productId);
+        });
+
+        async function loadProduct(productId) {
+            const container = document.getElementById('product-content');
+
+            try {
+                product = await API.Products.getProduct(productId);
+                document.title = `${product.name} - ShopEase`;
+
+                // Update breadcrumb
+                document.getElementById('breadcrumb-category').textContent = product.category;
+                document.getElementById('breadcrumb-product').textContent = product.name;
+
+                const mainImage = product.thumbnail || product.images?.[0] || 'https://via.placeholder.com/400x400?text=No+Image';
+                const discount = product.discount_percentage;
+
+                container.innerHTML = `
+                    <div class="col-md-5 mb-4">
+                        <div class="bg-white p-3 rounded border">
+                            <img src="${mainImage}" class="product-detail-img" id="main-image" alt="${product.name}"
+                                 onerror="this.src='https://via.placeholder.com/400x400?text=No+Image'">
+
+                            ${product.images && product.images.length > 1 ? `
+                                <div class="product-thumbnails d-flex gap-2 mt-3 justify-content-center">
+                                    ${product.images.map((img, i) => `
+                                        <img src="${img}" alt="Thumbnail ${i+1}" onclick="changeMainImage('${img}')"
+                                             class="${i === 0 ? 'active' : ''}"
+                                             onerror="this.style.display='none'">
+                                    `).join('')}
+                                </div>
+                            ` : ''}
+                        </div>
+
+                        <div class="d-grid gap-2 mt-3">
+                            <button class="btn btn-cart btn-lg" onclick="addToCart()" ${!product.in_stock ? 'disabled' : ''}>
+                                <i class="bi bi-cart-plus me-2"></i>Add to Cart
+                            </button>
+                            <button class="btn btn-buy btn-lg" onclick="buyNow()" ${!product.in_stock ? 'disabled' : ''}>
+                                <i class="bi bi-lightning-fill me-2"></i>Buy Now
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="col-md-7">
+                        <div class="bg-white p-4 rounded border">
+                            <h4 class="mb-2">${product.name}</h4>
+
+                            ${product.rating ? `
+                                <div class="mb-3">
+                                    <span class="rating">
+                                        ${product.rating.toFixed(1)} <i class="bi bi-star-fill"></i>
+                                    </span>
+                                    <span class="text-muted ms-2">${product.review_count || 0} Reviews</span>
+                                </div>
+                            ` : ''}
+
+                            <div class="mb-3">
+                                <span class="h3 text-dark">${Utils.formatPrice(product.price)}</span>
+                                ${product.original_price ? `
+                                    <span class="original-price h5">${Utils.formatPrice(product.original_price)}</span>
+                                    <span class="discount-badge h6">${discount}% off</span>
+                                ` : ''}
+                            </div>
+
+                            ${!product.in_stock ? `
+                                <div class="alert alert-danger">
+                                    <i class="bi bi-exclamation-circle me-2"></i>Currently out of stock
+                                </div>
+                            ` : `
+                                <div class="text-success mb-3">
+                                    <i class="bi bi-check-circle me-1"></i>In Stock (${product.stock_quantity} available)
+                                </div>
+                            `}
+
+                            <!-- Quantity Selector -->
+                            ${product.in_stock ? `
+                                <div class="mb-4">
+                                    <label class="form-label">Quantity:</label>
+                                    <div class="quantity-selector">
+                                        <button class="btn btn-outline-secondary" onclick="updateQuantity(-1)">
+                                            <i class="bi bi-dash"></i>
+                                        </button>
+                                        <input type="number" value="1" min="1" max="${product.stock_quantity}" id="quantity-input" onchange="validateQuantity()">
+                                        <button class="btn btn-outline-secondary" onclick="updateQuantity(1)">
+                                            <i class="bi bi-plus"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            ` : ''}
+
+                            <hr>
+
+                            <!-- Product Details -->
+                            <h5>Product Details</h5>
+                            <p class="text-muted">${product.description || 'No description available.'}</p>
+
+                            ${product.brand ? `<p><strong>Brand:</strong> ${product.brand}</p>` : ''}
+                            ${product.sku ? `<p><strong>SKU:</strong> ${product.sku}</p>` : ''}
+
+                            ${product.specifications ? `
+                                <h5 class="mt-4">Specifications</h5>
+                                <table class="table table-bordered">
+                                    <tbody>
+                                        ${Object.entries(product.specifications).map(([key, value]) => `
+                                            <tr>
+                                                <th class="w-25 bg-light">${key}</th>
+                                                <td>${value}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            ` : ''}
+
+                            <!-- Delivery Info -->
+                            <div class="mt-4 p-3 bg-light rounded">
+                                <h6><i class="bi bi-truck me-2"></i>Delivery Information</h6>
+                                <p class="small text-muted mb-1">
+                                    <i class="bi bi-check2 text-success me-1"></i>Free delivery on orders above ₹500
+                                </p>
+                                <p class="small text-muted mb-1">
+                                    <i class="bi bi-check2 text-success me-1"></i>Cash on Delivery available
+                                </p>
+                                <p class="small text-muted mb-0">
+                                    <i class="bi bi-check2 text-success me-1"></i>7 days easy return policy
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+            } catch (error) {
+                container.innerHTML = `
+                    <div class="col-12 text-center py-5">
+                        <i class="bi bi-exclamation-circle text-danger display-1"></i>
+                        <h4 class="mt-3">Product Not Found</h4>
+                        <p class="text-muted">The product you're looking for doesn't exist or has been removed.</p>
+                        <a href="/" class="btn btn-primary">Continue Shopping</a>
+                    </div>
+                `;
+            }
+        }
+
+        function changeMainImage(src) {
+            document.getElementById('main-image').src = src;
+            document.querySelectorAll('.product-thumbnails img').forEach(img => {
+                img.classList.toggle('active', img.src === src);
+            });
+        }
+
+        function updateQuantity(delta) {
+            const input = document.getElementById('quantity-input');
+            const newValue = parseInt(input.value) + delta;
+
+            if (newValue >= 1 && newValue <= product.stock_quantity) {
+                input.value = newValue;
+                selectedQuantity = newValue;
+            }
+        }
+
+        function validateQuantity() {
+            const input = document.getElementById('quantity-input');
+            let value = parseInt(input.value);
+
+            if (isNaN(value) || value < 1) value = 1;
+            if (value > product.stock_quantity) value = product.stock_quantity;
+
+            input.value = value;
+            selectedQuantity = value;
+        }
+
+        async function addToCart() {
+            if (!Utils.requireAuth()) return;
+
+            try {
+                const quantity = parseInt(document.getElementById('quantity-input')?.value || 1);
+                await API.Cart.addItem(product.id, quantity);
+                Utils.showToast('Added to cart!');
+                Utils.updateCartBadge();
+            } catch (error) {
+                Utils.showToast(error.message, 'error');
+            }
+        }
+
+        async function buyNow() {
+            if (!Utils.requireAuth()) return;
+
+            try {
+                const quantity = parseInt(document.getElementById('quantity-input')?.value || 1);
+                await API.Cart.addItem(product.id, quantity);
+                window.location.href = '/checkout.html';
+            } catch (error) {
+                Utils.showToast(error.message, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

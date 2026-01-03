@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <title>Checkout - ShopEase</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="/css/styles.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-dark navbar-custom">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="bi bi-bag-heart-fill me-2"></i>ShopEase
+            </a>
+            <span class="text-white"><i class="bi bi-lock-fill me-1"></i>Secure Checkout</span>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container py-4">
+        <div class="row" id="checkout-content">
+            <!-- Content loaded dynamically -->
+            <div class="col-12 text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Add Address Modal -->
+    <div class="modal fade" id="addressModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-geo-alt me-2"></i>Add New Address</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="address-form">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Full Name *</label>
+                                <input type="text" class="form-control" id="addr-fullName" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Phone Number *</label>
+                                <input type="tel" class="form-control" id="addr-phone" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Address Line 1 *</label>
+                            <input type="text" class="form-control" id="addr-line1" placeholder="House no., Building, Street" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Address Line 2</label>
+                            <input type="text" class="form-control" id="addr-line2" placeholder="Area, Colony">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Landmark</label>
+                            <input type="text" class="form-control" id="addr-landmark" placeholder="Nearby landmark">
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">City *</label>
+                                <input type="text" class="form-control" id="addr-city" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">State *</label>
+                                <input type="text" class="form-control" id="addr-state" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Pincode *</label>
+                                <input type="text" class="form-control" id="addr-pincode" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Address Type</label>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="addrType" id="addr-home" value="home" checked>
+                                <label class="btn btn-outline-primary" for="addr-home"><i class="bi bi-house me-1"></i>Home</label>
+                                <input type="radio" class="btn-check" name="addrType" id="addr-work" value="work">
+                                <label class="btn btn-outline-primary" for="addr-work"><i class="bi bi-building me-1"></i>Work</label>
+                                <input type="radio" class="btn-check" name="addrType" id="addr-other" value="other">
+                                <label class="btn btn-outline-primary" for="addr-other"><i class="bi bi-geo me-1"></i>Other</label>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="saveAddress()">Save Address</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/api.js"></script>
+    <script src="/js/utils.js"></script>
+    <script>
+        let cart = null;
+        let addresses = [];
+        let selectedAddressId = null;
+        let selectedPaymentMethod = 'cod';
+        let selectedBank = null;
+        let selectedUpiApp = null;
+        let upiVerified = false;
+        let addressModal = null;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (!Utils.requireAuth()) return;
+
+            addressModal = new bootstrap.Modal(document.getElementById('addressModal'));
+            await loadCheckoutData();
+        });
+
+        async function loadCheckoutData() {
+            const container = document.getElementById('checkout-content');
+
+            try {
+                [cart, addresses] = await Promise.all([
+                    API.Cart.getCart(),
+                    API.Addresses.getAddresses(),
+                ]);
+
+                if (!cart.items || cart.items.length === 0) {
+                    window.location.href = '/cart.html';
+                    return;
+                }
+
+                // Set default selected address
+                const defaultAddr = addresses.find(a => a.is_default);
+                if (defaultAddr) selectedAddressId = defaultAddr.id;
+                else if (addresses.length > 0) selectedAddressId = addresses[0].id;
+
+                renderCheckout();
+            } catch (error) {
+                container.innerHTML = `
+                    <div class="col-12 text-center py-5">
+                        <i class="bi bi-exclamation-circle text-danger display-1"></i>
+                        <h4 class="mt-3">Error Loading Checkout</h4>
+                        <p class="text-muted">${error.message}</p>
+                        <a href="/cart.html" class="btn btn-primary">Back to Cart</a>
+                    </div>
+                `;
+            }
+        }
+
+        function renderCheckout() {
+            const container = document.getElementById('checkout-content');
+
+            container.innerHTML = `
+                <div class="col-lg-8">
+                    <!-- Address Section -->
+                    <div class="checkout-section">
+                        <h5>
+                            <span class="step-number">1</span>
+                            Delivery Address
+                        </h5>
+
+                        ${addresses.length === 0 ? `
+                            <div class="text-center py-4">
+                                <i class="bi bi-geo-alt text-muted display-4"></i>
+                                <p class="mt-2">No saved addresses</p>
+                                <button class="btn btn-primary" onclick="showAddressModal()">
+                                    <i class="bi bi-plus me-1"></i>Add New Address
+                                </button>
+                            </div>
+                        ` : `
+                            <div class="row" id="address-list">
+                                ${addresses.map(addr => `
+                                    <div class="col-md-6 mb-3">
+                                        <div class="address-card ${selectedAddressId === addr.id ? 'selected' : ''}"
+                                             onclick="selectAddress('${addr.id}')">
+                                            ${addr.is_default ? '<span class="badge bg-primary badge-default">Default</span>' : ''}
+                                            <div class="d-flex align-items-center mb-2">
+                                                <span class="badge bg-light text-dark me-2">
+                                                    <i class="bi bi-${addr.address_type === 'home' ? 'house' : addr.address_type === 'work' ? 'building' : 'geo'}"></i>
+                                                    ${addr.address_type}
+                                                </span>
+                                                <strong>${addr.full_name}</strong>
+                                            </div>
+                                            <p class="small text-muted mb-1">
+                                                ${addr.address_line1}${addr.address_line2 ? ', ' + addr.address_line2 : ''}
+                                            </p>
+                                            <p class="small text-muted mb-1">
+                                                ${addr.city}, ${addr.state} - ${addr.pincode}
+                                            </p>
+                                            <p class="small mb-0">
+                                                <i class="bi bi-telephone me-1"></i>${addr.phone}
+                                            </p>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            <button class="btn btn-outline-primary btn-sm mt-2" onclick="showAddressModal()">
+                                <i class="bi bi-plus me-1"></i>Add New Address
+                            </button>
+                        `}
+                    </div>
+
+                    <!-- Payment Section -->
+                    <div class="checkout-section">
+                        <h5>
+                            <span class="step-number">2</span>
+                            Payment Method
+                        </h5>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <div class="payment-method ${selectedPaymentMethod === 'card' ? 'selected' : ''}"
+                                     onclick="selectPayment('card')">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-credit-card me-3"></i>
+                                        <div>
+                                            <strong>Credit / Debit Card</strong>
+                                            <p class="small text-muted mb-0">Visa, Mastercard, RuPay</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="payment-method ${selectedPaymentMethod === 'upi' ? 'selected' : ''}"
+                                     onclick="selectPayment('upi')">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-phone me-3"></i>
+                                        <div>
+                                            <strong>UPI</strong>
+                                            <p class="small text-muted mb-0">GPay, PhonePe, Paytm</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="payment-method ${selectedPaymentMethod === 'net_banking' ? 'selected' : ''}"
+                                     onclick="selectPayment('net_banking')">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-bank me-3"></i>
+                                        <div>
+                                            <strong>Net Banking</strong>
+                                            <p class="small text-muted mb-0">All major banks</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="payment-method ${selectedPaymentMethod === 'cod' ? 'selected' : ''}"
+                                     onclick="selectPayment('cod')">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-cash me-3"></i>
+                                        <div>
+                                            <strong>Cash on Delivery</strong>
+                                            <p class="small text-muted mb-0">Pay when you receive</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Card Details (shown when card is selected) -->
+                        <div id="card-details" class="${selectedPaymentMethod === 'card' ? '' : 'd-none'}">
+                            <hr>
+                            <div class="mb-3">
+                                <label class="form-label">Cardholder Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="card-holder-name" placeholder="Name on card">
+                                <div class="invalid-feedback">Please enter the cardholder name</div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-12 mb-3">
+                                    <label class="form-label">Card Number <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="card-number" placeholder="1234 5678 9012 3456" maxlength="19" oninput="formatCardNumber(this)">
+                                        <span class="input-group-text" id="card-type-icon"><i class="bi bi-credit-card"></i></span>
+                                    </div>
+                                    <div class="invalid-feedback">Please enter a valid 16-digit card number</div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Expiry Date <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="card-expiry" placeholder="MM/YY" maxlength="5" oninput="formatExpiry(this)">
+                                    <div class="invalid-feedback">Please enter a valid expiry date (MM/YY)</div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">CVV <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <input type="password" class="form-control" id="card-cvv" placeholder="***" maxlength="4">
+                                        <button class="btn btn-outline-secondary" type="button" onclick="toggleCvv()">
+                                            <i class="bi bi-eye" id="cvv-icon"></i>
+                                        </button>
+                                    </div>
+                                    <div class="invalid-feedback">Please enter CVV (3-4 digits)</div>
+                                    <small class="text-muted">3 or 4 digit security code on back of card</small>
+                                </div>
+                            </div>
+                            <div class="alert alert-light small mb-0">
+                                <i class="bi bi-shield-check me-1 text-success"></i>
+                                Your card details are secure and encrypted. We do not store your card information.
+                            </div>
+                        </div>
+
+                        <!-- UPI Details -->
+                        <div id="upi-details" class="${selectedPaymentMethod === 'upi' ? '' : 'd-none'}">
+                            <hr>
+                            <div class="mb-3">
+                                <label class="form-label">UPI ID <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="upi-id" placeholder="yourname@upi">
+                                    <button class="btn btn-outline-primary" type="button" onclick="verifyUpi()" id="verify-upi-btn">
+                                        Verify
+                                    </button>
+                                </div>
+                                <div class="invalid-feedback">Please enter a valid UPI ID (e.g., name@upi, name@paytm)</div>
+                                <div id="upi-verified" class="text-success small mt-1 d-none">
+                                    <i class="bi bi-check-circle me-1"></i>UPI ID verified
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <p class="small text-muted mb-2">Select your UPI app:</p>
+                                <div class="d-flex flex-wrap gap-2">
+                                    <button type="button" class="btn btn-outline-secondary upi-app-btn" onclick="selectUpiApp('gpay')">
+                                        <i class="bi bi-google me-1"></i>GPay
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary upi-app-btn" onclick="selectUpiApp('phonepe')">
+                                        <i class="bi bi-phone me-1"></i>PhonePe
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary upi-app-btn" onclick="selectUpiApp('paytm')">
+                                        <i class="bi bi-wallet2 me-1"></i>Paytm
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary upi-app-btn" onclick="selectUpiApp('other')">
+                                        <i class="bi bi-three-dots me-1"></i>Other
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Net Banking Details -->
+                        <div id="netbanking-details" class="${selectedPaymentMethod === 'net_banking' ? '' : 'd-none'}">
+                            <hr>
+                            <div class="mb-3">
+                                <label class="form-label">Select Your Bank <span class="text-danger">*</span></label>
+                                <div class="row mb-3">
+                                    <div class="col-6 col-md-3 mb-2">
+                                        <div class="bank-option" onclick="selectBank('sbi')">
+                                            <i class="bi bi-bank2"></i>
+                                            <span>SBI</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-6 col-md-3 mb-2">
+                                        <div class="bank-option" onclick="selectBank('hdfc')">
+                                            <i class="bi bi-bank2"></i>
+                                            <span>HDFC</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-6 col-md-3 mb-2">
+                                        <div class="bank-option" onclick="selectBank('icici')">
+                                            <i class="bi bi-bank2"></i>
+                                            <span>ICICI</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-6 col-md-3 mb-2">
+                                        <div class="bank-option" onclick="selectBank('axis')">
+                                            <i class="bi bi-bank2"></i>
+                                            <span>Axis</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <select class="form-select" id="bank-select" onchange="selectBank(this.value)">
+                                    <option value="">-- Select Other Bank --</option>
+                                    <option value="kotak">Kotak Mahindra Bank</option>
+                                    <option value="bob">Bank of Baroda</option>
+                                    <option value="pnb">Punjab National Bank</option>
+                                    <option value="canara">Canara Bank</option>
+                                    <option value="union">Union Bank of India</option>
+                                    <option value="idbi">IDBI Bank</option>
+                                    <option value="yes">Yes Bank</option>
+                                    <option value="indusind">IndusInd Bank</option>
+                                    <option value="federal">Federal Bank</option>
+                                    <option value="rbl">RBL Bank</option>
+                                </select>
+                            </div>
+                            <div id="selected-bank-info" class="d-none">
+                                <div class="alert alert-info small">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    You will be redirected to <strong id="selected-bank-name"></strong>'s secure payment page after placing order.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Order Items Preview -->
+                    <div class="checkout-section">
+                        <h5>
+                            <span class="step-number">3</span>
+                            Order Summary (${cart.item_count} items)
+                        </h5>
+
+                        ${cart.items.map(item => `
+                            <div class="d-flex align-items-center mb-3">
+                                <img src="${item.product_image || 'https://via.placeholder.com/60x60'}"
+                                     alt="${item.product_name}" style="width: 60px; height: 60px; object-fit: contain;"
+                                     class="border rounded me-3">
+                                <div class="flex-grow-1">
+                                    <p class="mb-0">${item.product_name}</p>
+                                    <small class="text-muted">Qty: ${item.quantity}</small>
+                                </div>
+                                <strong>${Utils.formatPrice(item.subtotal)}</strong>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <div class="col-lg-4">
+                    <div class="order-summary">
+                        <h5>PRICE DETAILS</h5>
+
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Price (${cart.item_count} items)</span>
+                            <span>${Utils.formatPrice(cart.subtotal)}</span>
+                        </div>
+
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Delivery Charges</span>
+                            <span class="${cart.shipping === 0 ? 'text-success' : ''}">
+                                ${cart.shipping === 0 ? 'FREE' : Utils.formatPrice(cart.shipping)}
+                            </span>
+                        </div>
+
+                        <hr>
+
+                        <div class="d-flex justify-content-between mb-3">
+                            <strong>Total Amount</strong>
+                            <strong class="h5 mb-0">${Utils.formatPrice(cart.total)}</strong>
+                        </div>
+
+                        <button class="btn btn-buy w-100 btn-lg" onclick="placeOrder()" id="place-order-btn"
+                                ${!selectedAddressId ? 'disabled' : ''}>
+                            <span id="order-btn-text">Place Order</span>
+                            <span id="order-btn-spinner" class="spinner-border spinner-border-sm d-none"></span>
+                        </button>
+
+                        <p class="small text-muted text-center mt-3">
+                            <i class="bi bi-shield-check me-1"></i>
+                            Safe and Secure Payments. 100% Authentic products.
+                        </p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function selectAddress(addressId) {
+            selectedAddressId = addressId;
+            document.querySelectorAll('.address-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            event.currentTarget.classList.add('selected');
+            document.getElementById('place-order-btn').disabled = false;
+        }
+
+        function selectPayment(method) {
+            selectedPaymentMethod = method;
+            document.querySelectorAll('.payment-method').forEach(el => {
+                el.classList.remove('selected');
+            });
+            event.currentTarget.classList.add('selected');
+
+            // Reset validation states
+            upiVerified = false;
+            selectedBank = null;
+
+            // Show/hide payment details
+            document.getElementById('card-details').classList.toggle('d-none', method !== 'card');
+            document.getElementById('upi-details').classList.toggle('d-none', method !== 'upi');
+            document.getElementById('netbanking-details').classList.toggle('d-none', method !== 'net_banking');
+        }
+
+        // Card formatting functions
+        function formatCardNumber(input) {
+            let value = input.value.replace(/\D/g, '');
+            value = value.replace(/(.{4})/g, '$1 ').trim();
+            input.value = value;
+
+            // Detect card type
+            const cardTypeIcon = document.getElementById('card-type-icon');
+            if (value.startsWith('4')) {
+                cardTypeIcon.innerHTML = '<span class="text-primary fw-bold">VISA</span>';
+            } else if (value.startsWith('5') || value.startsWith('2')) {
+                cardTypeIcon.innerHTML = '<span class="text-danger fw-bold">MC</span>';
+            } else if (value.startsWith('6')) {
+                cardTypeIcon.innerHTML = '<span class="text-success fw-bold">RuPay</span>';
+            } else {
+                cardTypeIcon.innerHTML = '<i class="bi bi-credit-card"></i>';
+            }
+        }
+
+        function formatExpiry(input) {
+            let value = input.value.replace(/\D/g, '');
+            if (value.length >= 2) {
+                value = value.slice(0, 2) + '/' + value.slice(2);
+            }
+            input.value = value;
+        }
+
+        function toggleCvv() {
+            const cvvInput = document.getElementById('card-cvv');
+            const icon = document.getElementById('cvv-icon');
+            if (cvvInput.type === 'password') {
+                cvvInput.type = 'text';
+                icon.classList.remove('bi-eye');
+                icon.classList.add('bi-eye-slash');
+            } else {
+                cvvInput.type = 'password';
+                icon.classList.remove('bi-eye-slash');
+                icon.classList.add('bi-eye');
+            }
+        }
+
+        function validateCardDetails() {
+            let isValid = true;
+
+            const cardHolderName = document.getElementById('card-holder-name');
+            const cardNumber = document.getElementById('card-number');
+            const cardExpiry = document.getElementById('card-expiry');
+            const cardCvv = document.getElementById('card-cvv');
+
+            // Validate cardholder name
+            if (!cardHolderName.value.trim()) {
+                cardHolderName.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                cardHolderName.classList.remove('is-invalid');
+            }
+
+            // Validate card number (16 digits)
+            const cardNum = cardNumber.value.replace(/\s/g, '');
+            if (cardNum.length !== 16 || !/^\d+$/.test(cardNum)) {
+                cardNumber.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                cardNumber.classList.remove('is-invalid');
+            }
+
+            // Validate expiry (MM/YY format and not expired)
+            const expiryMatch = cardExpiry.value.match(/^(\d{2})\/(\d{2})$/);
+            if (!expiryMatch) {
+                cardExpiry.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                const month = parseInt(expiryMatch[1]);
+                const year = parseInt('20' + expiryMatch[2]);
+                const now = new Date();
+                const expiry = new Date(year, month);
+                if (month < 1 || month > 12 || expiry < now) {
+                    cardExpiry.classList.add('is-invalid');
+                    isValid = false;
+                } else {
+                    cardExpiry.classList.remove('is-invalid');
+                }
+            }
+
+            // Validate CVV (3-4 digits)
+            if (cardCvv.value.length < 3 || !/^\d+$/.test(cardCvv.value)) {
+                cardCvv.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                cardCvv.classList.remove('is-invalid');
+            }
+
+            return isValid;
+        }
+
+        // UPI functions
+        function selectUpiApp(app) {
+            selectedUpiApp = app;
+            document.querySelectorAll('.upi-app-btn').forEach(btn => {
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-outline-secondary');
+            });
+            event.currentTarget.classList.remove('btn-outline-secondary');
+            event.currentTarget.classList.add('btn-primary');
+        }
+
+        function verifyUpi() {
+            const upiInput = document.getElementById('upi-id');
+            const upiId = upiInput.value.trim();
+
+            // Basic UPI ID validation (format: username@provider)
+            const upiPattern = /^[\w.-]+@[\w]+$/;
+            if (!upiPattern.test(upiId)) {
+                upiInput.classList.add('is-invalid');
+                document.getElementById('upi-verified').classList.add('d-none');
+                upiVerified = false;
+                return;
+            }
+
+            upiInput.classList.remove('is-invalid');
+
+            // Simulate verification (in real app, this would call backend)
+            const btn = document.getElementById('verify-upi-btn');
+            btn.textContent = 'Verifying...';
+            btn.disabled = true;
+
+            setTimeout(() => {
+                document.getElementById('upi-verified').classList.remove('d-none');
+                upiVerified = true;
+                btn.textContent = 'Verified';
+                btn.classList.remove('btn-outline-primary');
+                btn.classList.add('btn-success');
+            }, 1000);
+        }
+
+        function validateUpiDetails() {
+            const upiInput = document.getElementById('upi-id');
+            const upiId = upiInput.value.trim();
+            const upiPattern = /^[\w.-]+@[\w]+$/;
+
+            if (!upiPattern.test(upiId)) {
+                upiInput.classList.add('is-invalid');
+                return false;
+            }
+            upiInput.classList.remove('is-invalid');
+            return true;
+        }
+
+        // Net Banking functions
+        function selectBank(bankCode) {
+            if (!bankCode) return;
+
+            selectedBank = bankCode;
+
+            // Update visual selection for quick bank options
+            document.querySelectorAll('.bank-option').forEach(opt => {
+                opt.classList.remove('selected');
+            });
+
+            const bankNames = {
+                'sbi': 'State Bank of India',
+                'hdfc': 'HDFC Bank',
+                'icici': 'ICICI Bank',
+                'axis': 'Axis Bank',
+                'kotak': 'Kotak Mahindra Bank',
+                'bob': 'Bank of Baroda',
+                'pnb': 'Punjab National Bank',
+                'canara': 'Canara Bank',
+                'union': 'Union Bank of India',
+                'idbi': 'IDBI Bank',
+                'yes': 'Yes Bank',
+                'indusind': 'IndusInd Bank',
+                'federal': 'Federal Bank',
+                'rbl': 'RBL Bank'
+            };
+
+            // If it's a quick bank option, highlight it
+            if (['sbi', 'hdfc', 'icici', 'axis'].includes(bankCode)) {
+                if (event && event.currentTarget) {
+                    event.currentTarget.classList.add('selected');
+                }
+                document.getElementById('bank-select').value = '';
+            } else {
+                document.getElementById('bank-select').value = bankCode;
+            }
+
+            // Show selected bank info
+            document.getElementById('selected-bank-info').classList.remove('d-none');
+            document.getElementById('selected-bank-name').textContent = bankNames[bankCode] || bankCode;
+        }
+
+        function validateNetBankingDetails() {
+            if (!selectedBank) {
+                Utils.showToast('Please select a bank', 'error');
+                return false;
+            }
+            return true;
+        }
+
+        function showAddressModal() {
+            document.getElementById('address-form').reset();
+            addressModal.show();
+        }
+
+        async function saveAddress() {
+            const formData = {
+                full_name: document.getElementById('addr-fullName').value.trim(),
+                phone: document.getElementById('addr-phone').value.trim(),
+                address_line1: document.getElementById('addr-line1').value.trim(),
+                address_line2: document.getElementById('addr-line2').value.trim() || null,
+                landmark: document.getElementById('addr-landmark').value.trim() || null,
+                city: document.getElementById('addr-city').value.trim(),
+                state: document.getElementById('addr-state').value.trim(),
+                pincode: document.getElementById('addr-pincode').value.trim(),
+                address_type: document.querySelector('input[name="addrType"]:checked').value,
+                is_default: addresses.length === 0,
+            };
+
+            // Validation
+            if (!formData.full_name || !formData.phone || !formData.address_line1 ||
+                !formData.city || !formData.state || !formData.pincode) {
+                Utils.showToast('Please fill all required fields', 'error');
+                return;
+            }
+
+            if (!Utils.isValidPhone(formData.phone)) {
+                Utils.showToast('Please enter a valid phone number', 'error');
+                return;
+            }
+
+            if (!Utils.isValidPincode(formData.pincode)) {
+                Utils.showToast('Please enter a valid pincode', 'error');
+                return;
+            }
+
+            try {
+                const newAddress = await API.Addresses.create(formData);
+                addresses.push(newAddress);
+                selectedAddressId = newAddress.id;
+
+                addressModal.hide();
+                Utils.showToast('Address saved successfully');
+                renderCheckout();
+            } catch (error) {
+                Utils.showToast(error.message, 'error');
+            }
+        }
+
+        async function placeOrder() {
+            if (!selectedAddressId) {
+                Utils.showToast('Please select a delivery address', 'error');
+                return;
+            }
+
+            // Validate payment details based on selected method
+            if (selectedPaymentMethod === 'card') {
+                if (!validateCardDetails()) {
+                    Utils.showToast('Please fill in all card details correctly', 'error');
+                    return;
+                }
+            } else if (selectedPaymentMethod === 'upi') {
+                if (!validateUpiDetails()) {
+                    Utils.showToast('Please enter a valid UPI ID', 'error');
+                    return;
+                }
+            } else if (selectedPaymentMethod === 'net_banking') {
+                if (!validateNetBankingDetails()) {
+                    return; // Toast shown in validateNetBankingDetails
+                }
+            }
+
+            const btnText = document.getElementById('order-btn-text');
+            const btnSpinner = document.getElementById('order-btn-spinner');
+            const btn = document.getElementById('place-order-btn');
+
+            // Build payment info
+            const payment = { method: selectedPaymentMethod };
+
+            if (selectedPaymentMethod === 'card') {
+                const cardNumber = document.getElementById('card-number').value.replace(/\s/g, '');
+                payment.card_last_four = cardNumber.slice(-4);
+                payment.card_holder_name = document.getElementById('card-holder-name').value.trim();
+                // Detect card brand
+                if (cardNumber.startsWith('4')) {
+                    payment.card_brand = 'Visa';
+                } else if (cardNumber.startsWith('5') || cardNumber.startsWith('2')) {
+                    payment.card_brand = 'Mastercard';
+                } else if (cardNumber.startsWith('6')) {
+                    payment.card_brand = 'RuPay';
+                } else {
+                    payment.card_brand = 'Unknown';
+                }
+            } else if (selectedPaymentMethod === 'upi') {
+                payment.upi_id = document.getElementById('upi-id').value.trim();
+                if (selectedUpiApp) {
+                    payment.upi_app = selectedUpiApp;
+                }
+            } else if (selectedPaymentMethod === 'net_banking') {
+                payment.bank_code = selectedBank;
+            }
+
+            btn.disabled = true;
+            btnText.textContent = 'Processing...';
+            btnSpinner.classList.remove('d-none');
+
+            try {
+                const result = await API.Orders.create({
+                    address_id: selectedAddressId,
+                    payment: payment,
+                });
+
+                // Redirect to confirmation page
+                localStorage.setItem('lastOrder', JSON.stringify(result));
+                window.location.href = '/confirmation.html';
+            } catch (error) {
+                Utils.showToast(error.message, 'error');
+                btn.disabled = false;
+                btnText.textContent = 'Place Order';
+                btnSpinner.classList.add('d-none');
+            }
+        }
+    </script>
+</body>
+</html>
