@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     FIREBASE_AUTH_URI: str = "https://accounts.google.com/o/oauth2/auth"
     FIREBASE_TOKEN_URI: str = "https://oauth2.googleapis.com/token"
     FIREBASE_CREDENTIALS_PATH: str = ""  # Alternative: path to JSON credentials file
+    FIREBASE_CREDENTIALS_JSON: str = ""  # Alternative: JSON string of credentials (for Vercel)
 
     # CORS
     CORS_ORIGINS: str = "*"  # Comma-separated list of origins
@@ -86,11 +87,20 @@ class Settings(BaseSettings):
         Build Firebase credentials dictionary from environment variables.
         Returns credentials dict for firebase_admin initialization.
         """
-        # If a credentials file path is provided, use that
+        import json
+
+        # Option 1: JSON string (for Vercel/serverless)
+        if self.FIREBASE_CREDENTIALS_JSON:
+            try:
+                return json.loads(self.FIREBASE_CREDENTIALS_JSON)
+            except json.JSONDecodeError:
+                pass
+
+        # Option 2: Credentials file path (for Docker)
         if self.FIREBASE_CREDENTIALS_PATH and os.path.exists(self.FIREBASE_CREDENTIALS_PATH):
             return {"credential_path": self.FIREBASE_CREDENTIALS_PATH}
 
-        # Otherwise, build from individual environment variables
+        # Option 3: Build from individual environment variables
         private_key = self.FIREBASE_PRIVATE_KEY
         # Handle escaped newlines in private key
         if private_key:
