@@ -1,7 +1,5 @@
-# Cloud Run Dockerfile
-# Build from backend directory: gcloud run deploy --source ./backend
-
-FROM python:3.11-slim as builder
+# Build stage
+FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
@@ -11,7 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
-COPY requirements.txt .
+COPY backend/requirements.txt .
 RUN pip wheel --no-cache-dir --no-deps --wheel-dir /app/wheels -r requirements.txt
 
 # Production stage
@@ -35,10 +33,13 @@ COPY --from=builder /app/requirements.txt .
 RUN pip install --no-cache /wheels/*
 
 # Copy application code
-COPY app/ ./app/
+COPY backend/app/ ./app/
+
+# Copy frontend (for serving static files)
+COPY frontend/ ./frontend/
 
 # Copy Firebase credentials
-COPY serviceAccountKey.json ./serviceAccountKey.json
+COPY backend/serviceAccountKey.json ./serviceAccountKey.json
 
 # Change ownership to non-root user
 RUN chown -R appuser:appuser /app
@@ -46,11 +47,12 @@ RUN chown -R appuser:appuser /app
 # Switch to non-root user
 USER appuser
 
-# Cloud Run uses PORT environment variable
-ENV PORT=8000
-
 # Expose port
 EXPOSE 8000
 
-# Run the application
-CMD exec gunicorn app.main:app -w 2 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:$PORT --timeout 120
+# Health check
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/api/health || exit 1
+
+# Run the application with gunicorn for production
+CMD ["gunicorn", "app.main:app", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8000"]

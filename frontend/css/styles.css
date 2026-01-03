@@ -788,3 +788,36 @@ body {
 .min-vh-50 {
     min-height: 50vh;
 }
+
+/* Clickable elements - pointer cursor */
+a,
+button,
+[role="button"],
+[onclick],
+.btn,
+.nav-link,
+.navbar-brand,
+.product-card,
+.address-card,
+.payment-method,
+.bank-option,
+.cart-item img,
+.product-thumbnails img,
+.category-bar a,
+.list-group-item,
+.dropdown-item,
+.form-check-input,
+.form-check-label,
+input[type="radio"],
+input[type="checkbox"],
+label[for],
+.clickable {
+    cursor: pointer;
+}
+
+/* Disabled elements */
+button:disabled,
+.btn:disabled,
+.disabled {
+    cursor: not-allowed;
+}

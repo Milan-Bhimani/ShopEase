@@ -3,15 +3,8 @@
  * Handles all API communication with the backend
  */
 
-// Auto-detect API URL based on environment
-const API_BASE_URL = (() => {
-    const hostname = window.location.hostname;
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
-        return '/api';  // Local development (nginx proxy)
-    }
-    // Production: Cloud Run URL
-    return 'https://shopease-api-543011828024.asia-south1.run.app/api';
-})();
+// API Base URL - uses nginx proxy in Docker
+const API_BASE_URL = '/api';
 
 // Store for auth token
 let authToken = localStorage.getItem('authToken');
