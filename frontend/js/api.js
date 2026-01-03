@@ -54,11 +54,14 @@ async function apiRequest(endpoint, options = {}) {
 
         // Handle 401 Unauthorized
         if (response.status === 401) {
-            clearAuth();
-            if (!window.location.pathname.includes('login')) {
-                window.location.href = '/login.html';
+            // Don't redirect for auth endpoints (login, pre-login)
+            if (!endpoint.startsWith('/auth/')) {
+                clearAuth();
+                if (!window.location.pathname.includes('login')) {
+                    window.location.href = '/login.html';
+                }
             }
-            throw new Error('Session expired. Please login again.');
+            // Let the error fall through to be handled by caller
         }
 
         const data = await response.json();
