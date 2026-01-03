@@ -422,9 +422,47 @@ function updateNavbar() {
             userNameSpan.textContent = user.first_name || 'User';
         }
         updateCartBadge();
+
+        // Add Admin Dashboard link if user is admin
+        if (user && user.is_admin) {
+            addAdminLink();
+        }
     } else {
         authButtons.style.display = 'block';
         userMenu.style.display = 'none';
+    }
+}
+
+/**
+ * Add Admin Dashboard link to navbar for admin users
+ *
+ * Dynamically inserts an "Admin Dashboard" link in the user dropdown menu
+ * if the current user has admin privileges. The link is added after
+ * "Orders" and before the divider.
+ *
+ * Only adds the link if it doesn't already exist (prevents duplicates
+ * on multiple calls to updateNavbar).
+ */
+function addAdminLink() {
+    const userMenu = document.getElementById('user-menu');
+    if (!userMenu) return;
+
+    // Check if admin link already exists
+    if (document.getElementById('admin-dashboard-link')) return;
+
+    const dropdownMenu = userMenu.querySelector('.dropdown-menu');
+    if (!dropdownMenu) return;
+
+    // Find the divider's parent li to insert before it
+    const dividerLi = dropdownMenu.querySelector('li:has(.dropdown-divider)');
+    if (dividerLi) {
+        // Create admin link li
+        const adminLi = document.createElement('li');
+        adminLi.id = 'admin-dashboard-link';
+        adminLi.innerHTML = '<a class="dropdown-item text-primary fw-semibold" href="/admin.html"><i class="bi bi-speedometer2 me-2"></i>Admin Dashboard</a>';
+
+        // Insert before the divider li
+        dropdownMenu.insertBefore(adminLi, dividerLi);
     }
 }
 
