@@ -71,16 +71,57 @@
         </div>
     </div>
 
-    <!-- Main Content -->
-    <main class="container py-4">
-        <!-- Hero Banner -->
-        <div class="card bg-primary text-white mb-4">
-            <div class="card-body text-center py-5">
-                <h1 class="display-5 fw-bold">Welcome to ShopEase</h1>
-                <p class="lead mb-4">Discover amazing products at unbeatable prices</p>
-                <a href="#products" class="btn btn-warning btn-lg">Shop Now</a>
+    <!-- Deals Carousel -->
+    <div id="dealsCarousel" class="carousel slide mb-4" data-bs-ride="carousel" data-bs-interval="4000">
+        <div class="carousel-indicators">
+            <button type="button" data-bs-target="#dealsCarousel" data-bs-slide-to="0" class="active"></button>
+            <button type="button" data-bs-target="#dealsCarousel" data-bs-slide-to="1"></button>
+            <button type="button" data-bs-target="#dealsCarousel" data-bs-slide-to="2"></button>
+        </div>
+        <div class="carousel-inner rounded-3 overflow-hidden">
+            <!-- Slide 1: Welcome -->
+            <div class="carousel-item active">
+                <div class="carousel-slide" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    <div class="carousel-content">
+                        <h2 class="carousel-title">Welcome to ShopEase</h2>
+                        <p class="carousel-text">Your one-stop destination for amazing products at unbeatable prices</p>
+                        <a href="#products" class="btn btn-warning btn-lg">Explore Products</a>
+                    </div>
+                </div>
+            </div>
+            <!-- Slide 2: Electronics Deal -->
+            <div class="carousel-item">
+                <div class="carousel-slide" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                    <div class="carousel-content">
+                        <span class="deal-badge">HOT DEAL</span>
+                        <h2 class="carousel-title">Electronics Sale</h2>
+                        <p class="carousel-text">Up to 40% off on latest gadgets and electronics</p>
+                        <a href="#" onclick="filterByCategory('Electronics'); return false;" class="btn btn-light btn-lg">Shop Electronics</a>
+                    </div>
+                </div>
+            </div>
+            <!-- Slide 3: Fashion -->
+            <div class="carousel-item">
+                <div class="carousel-slide" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                    <div class="carousel-content">
+                        <span class="deal-badge">NEW ARRIVALS</span>
+                        <h2 class="carousel-title">Fashion Collection</h2>
+                        <p class="carousel-text">Discover trendy styles for every occasion</p>
+                        <a href="#" onclick="filterByCategory('Fashion'); return false;" class="btn btn-dark btn-lg">Shop Fashion</a>
+                    </div>
+                </div>
             </div>
         </div>
+        <button class="carousel-control-prev" type="button" data-bs-target="#dealsCarousel" data-bs-slide="prev">
+            <span class="carousel-control-prev-icon"></span>
+        </button>
+        <button class="carousel-control-next" type="button" data-bs-target="#dealsCarousel" data-bs-slide="next">
+            <span class="carousel-control-next-icon"></span>
+        </button>
+    </div>
+
+    <!-- Main Content -->
+    <main class="container py-4">
 
         <!-- Featured Products -->
         <section class="mb-5">
