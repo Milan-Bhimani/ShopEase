@@ -246,18 +246,36 @@
             btnSpinner.classList.remove('d-none');
 
             try {
+                // First verify credentials and check if OTP is required
+                const preLoginResponse = await API.Auth.preLogin(email, password);
+
                 // Store credentials for later
                 pendingLogin = { email, password };
 
-                // Send OTP for login verification
-                const response = await API.Auth.sendOTP(email, 'login');
+                // Admin users skip OTP
+                if (!preLoginResponse.require_otp) {
+                    btnText.textContent = 'Logging in...';
+
+                    // Directly login without OTP
+                    await API.Auth.login(email, password);
+                    Utils.showToast('Login successful!');
+
+                    // Redirect
+                    const returnUrl = Utils.getUrlParam('return') || '/';
+                    window.location.href = decodeURIComponent(returnUrl);
+                    return;
+                }
+
+                // Send OTP for non-admin users
+                btnText.textContent = 'Sending OTP...';
+                const otpResponse = await API.Auth.sendOTP(email, 'login');
 
                 // Show OTP modal
                 document.getElementById('otp-email-display').textContent = email;
                 clearOtpInputs();
                 document.getElementById('otp-error').classList.add('d-none');
                 otpModal.show();
-                startOtpTimer(response.expires_in);
+                startOtpTimer(otpResponse.expires_in);
 
                 // Focus first OTP input
                 setTimeout(() => {

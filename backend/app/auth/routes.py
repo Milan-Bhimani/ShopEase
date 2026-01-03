@@ -71,6 +71,52 @@ async def register(user_data: UserCreate) -> Dict[str, Any]:
     }
 
 
+@router.post("/pre-login")
+async def pre_login(credentials: UserLogin) -> Dict[str, Any]:
+    """
+    Verify credentials and check if OTP is required.
+
+    Args:
+        credentials: Login credentials (email and password)
+
+    Returns:
+        Whether OTP is required for this user
+
+    Raises:
+        HTTPException: 401 if credentials invalid
+    """
+    # Find user by email
+    user = await user_repo.get_by_email(credentials.email)
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password"
+        )
+
+    # Verify password
+    if not verify_password(credentials.password, user.get("password_hash", "")):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password"
+        )
+
+    # Check if user is active
+    if not user.get("is_active", True):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is disabled"
+        )
+
+    # Admin users skip OTP
+    is_admin = user.get("is_admin", False)
+
+    return {
+        "require_otp": not is_admin,
+        "email": user["email"]
+    }
+
+
 @router.post("/login", response_model=TokenResponse)
 async def login(credentials: UserLogin) -> Dict[str, Any]:
     """

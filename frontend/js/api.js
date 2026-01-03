@@ -128,6 +128,16 @@ const AuthAPI = {
     },
 
     /**
+     * Pre-login check - verify credentials and check if OTP is required
+     */
+    async preLogin(email, password) {
+        return apiRequest('/auth/pre-login', {
+            method: 'POST',
+            body: JSON.stringify({ email, password }),
+        });
+    },
+
+    /**
      * Login user
      */
     async login(email, password) {
