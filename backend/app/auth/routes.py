@@ -71,6 +71,9 @@ async def register(user_data: UserCreate) -> Dict[str, Any]:
     }
 
 
+import logging
+logger = logging.getLogger(__name__)
+
 @router.post("/pre-login")
 async def pre_login(credentials: UserLogin) -> Dict[str, Any]:
     """
@@ -86,16 +89,29 @@ async def pre_login(credentials: UserLogin) -> Dict[str, Any]:
         HTTPException: 401 if credentials invalid
     """
     # Find user by email
+    logger.info(f"Pre-login attempt for email: {credentials.email}")
     user = await user_repo.get_by_email(credentials.email)
 
     if not user:
+        logger.warning(f"User not found for email: {credentials.email}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password"
         )
 
+    logger.info(f"User found: {user.get('email')}, has password_hash: {'password_hash' in user}")
+    stored_hash = user.get("password_hash", "")
+    logger.info(f"Password hash starts with: {stored_hash[:20] if stored_hash else 'EMPTY'}...")
+
     # Verify password
-    if not verify_password(credentials.password, user.get("password_hash", "")):
+    try:
+        password_valid = verify_password(credentials.password, stored_hash)
+        logger.info(f"Password verification result: {password_valid}")
+    except Exception as e:
+        logger.error(f"Password verification error: {e}")
+        password_valid = False
+
+    if not password_valid:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password"
