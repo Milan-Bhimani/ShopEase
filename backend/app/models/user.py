@@ -201,6 +201,7 @@ class UserResponse(BaseModel):
     last_name: str = Field(..., description="Last name")
     phone: Optional[str] = Field(None, description="Phone number")
     is_active: bool = Field(True, description="Account active status")
+    is_admin: bool = Field(False, description="Admin status")
     created_at: Optional[str] = Field(None, description="Account creation timestamp")
 
 
