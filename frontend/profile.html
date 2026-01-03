@@ -1,3 +1,115 @@
+<!--
+================================================================================
+ShopEase User Profile Page (profile.html)
+================================================================================
+
+PURPOSE:
+--------
+User account management dashboard.
+Central hub for profile, orders, and addresses.
+
+AUTHENTICATION:
+---------------
+PROTECTED page. Requires login.
+Redirects to login if not authenticated.
+
+NAVIGATION (Hash-based):
+------------------------
+Uses URL hash for section navigation:
+  /profile.html#profile   - Personal Information
+  /profile.html#orders    - Order History
+  /profile.html#addresses - Saved Addresses
+
+Default section is #profile.
+
+LAYOUT:
+-------
+Two-column layout:
+  LEFT (col-md-3): Sidebar with navigation
+  RIGHT (col-md-9): Content area
+
+SECTIONS:
+---------
+1. MY PROFILE (#profile)
+   - View/edit first name, last name, phone
+   - Email is read-only (cannot change)
+   - Change password form
+   - Validates new password requirements
+
+2. MY ORDERS (#orders)
+   - List of all user's orders
+   - Order card shows:
+     - Order number and date
+     - Status badge
+     - First 2 items with images
+     - "+N more items" if applicable
+     - Total amount
+     - Cancel button (if pending/confirmed)
+     - View Details button
+   - Order Details Modal:
+     - All items with prices
+     - Shipping address
+     - Payment method
+     - Price breakdown
+
+3. MANAGE ADDRESSES (#addresses)
+   - Grid of saved addresses
+   - Each address card shows:
+     - Type badge (Home/Work/Other)
+     - Default badge if applicable
+     - Full address details
+     - Phone number
+     - Set Default / Delete buttons
+   - Add New Address form
+
+MODALS:
+-------
+1. Order Details Modal
+   - Shows complete order information
+   - Items, address, payment, totals
+
+2. Cancel Order Modal
+   - Confirmation dialog
+   - Shows refund information for online payments
+   - Shows order number being cancelled
+
+3. Delete Address Modal
+   - Confirmation dialog
+   - Shows address being deleted
+
+JAVASCRIPT FUNCTIONS:
+---------------------
+Navigation:
+- showSection(): Switches between profile/orders/addresses
+
+Profile:
+- loadUserData(): Loads user profile
+- renderProfile(): Renders profile form
+- updateProfile(): Saves profile changes
+- changePassword(): Updates password
+
+Orders:
+- renderOrders(): Loads and displays order list
+- viewOrderDetails(): Opens order modal
+- cancelOrder(): Opens cancel confirmation
+- confirmCancelOrder(): Cancels order via API
+
+Addresses:
+- renderAddresses(): Loads and displays addresses
+- showAddAddressForm(): Shows add form
+- saveNewAddress(): Saves new address
+- setDefaultAddress(): Sets address as default
+- deleteAddress(): Opens delete confirmation
+- confirmDeleteAddress(): Deletes via API
+
+DATA FLOW:
+----------
+1. Page loads → Check auth
+2. Load user profile
+3. Parse URL hash → showSection(hash)
+4. Section renders → Load section-specific data
+5. User actions → API calls → Re-render
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -552,6 +664,14 @@
             try {
                 addresses = await API.Addresses.getAddresses();
 
+                // Remove duplicates by ID
+                const seen = new Set();
+                addresses = addresses.filter(addr => {
+                    if (seen.has(addr.id)) return false;
+                    seen.add(addr.id);
+                    return true;
+                });
+
                 const listContainer = document.getElementById('addresses-list');
 
                 if (addresses.length === 0) {
@@ -563,31 +683,32 @@
                     return;
                 }
 
+                listContainer.className = ''; // Remove text-center
                 listContainer.innerHTML = `
                     <div class="row">
                         ${addresses.map(addr => `
                             <div class="col-md-6 mb-3">
-                                <div class="border rounded p-3 h-100">
-                                    <div class="d-flex justify-content-between mb-2">
-                                        <span class="badge bg-light text-dark">
-                                            <i class="bi bi-${addr.address_type === 'home' ? 'house' : addr.address_type === 'work' ? 'building' : 'geo'}"></i>
+                                <div class="border rounded p-3 h-100 text-start">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span class="badge bg-light text-dark text-capitalize">
+                                            <i class="bi bi-${addr.address_type === 'home' ? 'house' : addr.address_type === 'work' ? 'building' : 'geo'} me-1"></i>
                                             ${addr.address_type}
                                         </span>
                                         ${addr.is_default ? '<span class="badge bg-primary">Default</span>' : ''}
                                     </div>
-                                    <strong>${addr.full_name}</strong>
+                                    <p class="fw-bold mb-1">${addr.full_name}</p>
                                     <p class="small text-muted mb-1">${addr.address_line1}</p>
                                     ${addr.address_line2 ? `<p class="small text-muted mb-1">${addr.address_line2}</p>` : ''}
                                     <p class="small text-muted mb-1">${addr.city}, ${addr.state} - ${addr.pincode}</p>
-                                    <p class="small mb-2"><i class="bi bi-telephone me-1"></i>${addr.phone}</p>
-                                    <div class="btn-group btn-group-sm">
+                                    <p class="small text-muted mb-3"><i class="bi bi-telephone me-1"></i>${addr.phone}</p>
+                                    <div class="d-flex gap-2">
                                         ${!addr.is_default ? `
-                                            <button class="btn btn-outline-primary" onclick="setDefaultAddress('${addr.id}')">
+                                            <button class="btn btn-outline-primary btn-sm" onclick="setDefaultAddress('${addr.id}')">
                                                 Set Default
                                             </button>
                                         ` : ''}
-                                        <button class="btn btn-outline-danger" onclick="deleteAddress('${addr.id}')">
-                                            <i class="bi bi-trash"></i>
+                                        <button class="btn btn-outline-danger btn-sm" onclick="deleteAddress('${addr.id}')">
+                                            <i class="bi bi-trash me-1"></i>Delete
                                         </button>
                                     </div>
                                 </div>

@@ -1,10 +1,68 @@
 #!/usr/bin/env python3
 """
-Seed script to populate Firebase Firestore with sample data.
-Run this script after setting up Firebase credentials.
+==============================================================================
+ShopEase Data Seeder (seed_data.py)
+==============================================================================
 
-Usage:
+PURPOSE:
+--------
+Initial seed script to populate Firebase Firestore with sample product data
+and an admin user account. This is the ORIGINAL seeder with 10 products.
+
+For a fresh database with 50 products, use seed_fresh_data.py instead.
+
+USAGE:
+------
+    cd /path/to/ecommerce-app
     python scripts/seed_data.py
+
+PREREQUISITES:
+--------------
+1. Firebase credentials configured in backend/.env file:
+   - FIREBASE_PROJECT_ID
+   - FIREBASE_PRIVATE_KEY_ID
+   - FIREBASE_PRIVATE_KEY
+   - FIREBASE_CLIENT_EMAIL
+   - FIREBASE_CLIENT_ID
+
+2. Backend dependencies installed:
+   pip install -r backend/requirements.txt
+
+WHAT THIS SCRIPT DOES:
+----------------------
+1. Initializes Firebase connection
+2. Adds 10 sample products to the 'products' collection:
+   - Electronics: iPhone, Galaxy, Sony Headphones, Fitbit
+   - Computers: MacBook Pro
+   - Fashion: Nike shoes, Levi's jeans
+   - Home & Kitchen: Instant Pot, Dyson vacuum
+   - Books: Psychology of Money
+
+3. Creates an admin user account:
+   - Email: admin@shopease.com
+   - Password: Admin123!
+   - Use this account to access admin features
+
+PRODUCT DATA STRUCTURE:
+-----------------------
+Each product includes:
+- name, name_lower (for search)
+- description
+- price, original_price
+- category, brand, sku
+- stock_quantity
+- images[], thumbnail
+- specifications{}
+- is_active, is_featured
+- tags[]
+- rating, review_count
+- created_at, updated_at
+
+NOTE:
+-----
+This script ADDS products without checking for duplicates.
+Running it multiple times will create duplicate products.
+Use seed_fresh_data.py to clear and reseed.
 """
 import os
 import sys

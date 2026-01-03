@@ -1,6 +1,63 @@
 """
-Shopping Cart API routes.
+==============================================================================
+Shopping Cart API Routes (cart.py)
+==============================================================================
+
+PURPOSE:
+--------
+This module defines all shopping cart API endpoints:
+- View cart contents with real-time product data
+- Add items to cart
+- Update item quantities
+- Remove items from cart
+- Clear entire cart
+
+API ENDPOINTS:
+--------------
+GET    /cart           - Get full cart with items and totals
+GET    /cart/summary   - Get cart count and total (for header badge)
+POST   /cart/items     - Add item to cart
+PUT    /cart/items/{id} - Update item quantity
+DELETE /cart/items/{id} - Remove item from cart
+DELETE /cart           - Clear entire cart
+
+CART ARCHITECTURE:
+------------------
+Each user has ONE cart document in Firestore:
+    carts/{cart_id}:
+        user_id: "user123"
+        items: [
+            {product_id: "prod1", quantity: 2},
+            {product_id: "prod2", quantity: 1}
+        ]
+        updated_at: timestamp
+
+The cart stores minimal data (product_id, quantity).
+Product details (name, price, image) are fetched at response time.
+This ensures cart always reflects current prices.
+
+PRICING LOGIC:
+--------------
+- Subtotal: Sum of (price * quantity) for all items
+- Shipping: Free if subtotal >= ₹500, otherwise ₹40
+- Total: Subtotal + Shipping
+- Tax: Included in product prices (GST inclusive)
+
+WHY ENRICH AT RESPONSE TIME?
+----------------------------
+Cart items are "enriched" with current product data each time:
+1. Prices may change - customer sees current price
+2. Products may be discontinued - removed from cart
+3. Stock may change - warnings shown if low
+4. Images may be updated - customer sees latest
+
+STOCK VALIDATION:
+-----------------
+- Adding items: Check if stock >= requested quantity
+- Updating quantity: Validate against current stock
+- At checkout: Final stock validation before order
 """
+
 from fastapi import APIRouter, HTTPException, status, Depends
 from typing import Dict, Any, List
 
@@ -8,18 +65,43 @@ from ..auth.dependencies import get_current_user
 from ..models.cart import CartItemAdd, CartItemUpdate, CartResponse, CartSummary
 from ..firebase import cart_repo, product_repo
 
+# Create router with prefix and tag for OpenAPI docs
 router = APIRouter(prefix="/cart", tags=["Cart"])
 
-# Shipping settings
+# ==============================================================================
+# SHIPPING CONFIGURATION
+# ==============================================================================
+# Free shipping for orders above this amount (in INR)
 FREE_SHIPPING_THRESHOLD = 500.0
+# Flat shipping rate for orders below threshold
 SHIPPING_COST = 40.0
 
 
+# ==============================================================================
+# HELPER FUNCTIONS
+# ==============================================================================
+
 async def get_or_create_cart(user_id: str) -> Dict[str, Any]:
-    """Get user's cart or create a new one."""
+    """
+    Get user's cart or create a new empty cart.
+
+    Each user has exactly one cart. If it doesn't exist,
+    we create it on first access (lazy initialization).
+
+    Args:
+        user_id: User ID
+
+    Returns:
+        Cart document with id, user_id, items
+
+    Note:
+        This is called on every cart operation to ensure
+        the cart exists before modifying it.
+    """
     cart = await cart_repo.get_user_cart(user_id)
 
     if not cart:
+        # Create empty cart for new user
         cart_data = {
             "user_id": user_id,
             "items": [],
@@ -31,8 +113,25 @@ async def get_or_create_cart(user_id: str) -> Dict[str, Any]:
 
 
 async def calculate_cart_totals(items: List[Dict[str, Any]]) -> Dict[str, float]:
-    """Calculate cart totals. Tax is included in product prices."""
+    """
+    Calculate cart totals from enriched items.
+
+    Pricing breakdown:
+    - subtotal: Sum of all item subtotals
+    - shipping: Free if subtotal >= ₹500, else ₹40
+    - total: subtotal + shipping
+
+    Note: Tax (GST) is already included in product prices.
+    India uses inclusive pricing, so no separate tax line.
+
+    Args:
+        items: List of enriched cart items with subtotal
+
+    Returns:
+        Dict with subtotal, shipping, and total
+    """
     subtotal = sum(item.get("subtotal", 0) for item in items)
+    # Free shipping above threshold
     shipping = 0.0 if subtotal >= FREE_SHIPPING_THRESHOLD else SHIPPING_COST
     total = round(subtotal + shipping, 2)
 
@@ -44,12 +143,31 @@ async def calculate_cart_totals(items: List[Dict[str, Any]]) -> Dict[str, float]
 
 
 async def enrich_cart_items(cart_items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Enrich cart items with current product data."""
+    """
+    Enrich cart items with current product data.
+
+    Cart items only store product_id and quantity.
+    This function fetches current product info (name, price, image, stock)
+    to build the complete response.
+
+    Products that are inactive or deleted are silently removed.
+
+    Args:
+        cart_items: List of {product_id, quantity}
+
+    Returns:
+        List of enriched items with full product details
+
+    Note:
+        This makes N database calls (one per item).
+        For large carts, consider batch fetching.
+    """
     enriched = []
 
     for item in cart_items:
         product = await product_repo.get_by_id(item["product_id"])
 
+        # Only include active products (inactive ones are silently removed)
         if product and product.get("is_active", True):
             stock = product.get("stock_quantity", 0)
             price = product.get("price", 0)
@@ -59,18 +177,31 @@ async def enrich_cart_items(cart_items: List[Dict[str, Any]]) -> List[Dict[str, 
                 "product_id": item["product_id"],
                 "product_name": product.get("name", "Unknown Product"),
                 "product_image": product.get("thumbnail") or (product.get("images", [None])[0] if product.get("images") else None),
-                "price": price,
+                "price": price,  # Current price (may differ from when added)
                 "quantity": quantity,
                 "subtotal": round(price * quantity, 2),
                 "in_stock": stock > 0,
-                "stock_quantity": stock,
+                "stock_quantity": stock,  # For inventory warnings
             })
 
     return enriched
 
 
 def format_cart_response(cart: Dict[str, Any], enriched_items: List[Dict[str, Any]], totals: Dict[str, float]) -> Dict[str, Any]:
-    """Format cart response."""
+    """
+    Format cart data for API response.
+
+    Combines cart metadata, enriched items, and calculated totals
+    into a single response matching CartResponse schema.
+
+    Args:
+        cart: Raw cart document
+        enriched_items: Items with product details
+        totals: Calculated subtotal, shipping, total
+
+    Returns:
+        Complete CartResponse-compatible dict
+    """
     return {
         "id": cart["id"],
         "user_id": cart["user_id"],
@@ -83,15 +214,37 @@ def format_cart_response(cart: Dict[str, Any], enriched_items: List[Dict[str, An
     }
 
 
+# ==============================================================================
+# CART ENDPOINTS - All require authentication
+# ==============================================================================
+
 @router.get("", response_model=CartResponse)
 async def get_cart(
     current_user: Dict[str, Any] = Depends(get_current_user)
 ) -> Dict[str, Any]:
     """
-    Get current user's cart.
+    Get current user's cart with full details.
+
+    Returns complete cart including:
+    - All items with current product data
+    - Calculated subtotal, shipping, and total
+    - Stock information for inventory warnings
 
     Returns:
-        Cart with items and totals
+        CartResponse with items and totals
+
+    Authorization:
+        Requires authenticated user
+
+    Example Response:
+        {
+            "id": "cart123",
+            "items": [...],
+            "item_count": 3,
+            "subtotal": 1500,
+            "shipping": 0,
+            "total": 1500
+        }
     """
     cart = await get_or_create_cart(current_user["id"])
     enriched_items = await enrich_cart_items(cart.get("items", []))
@@ -105,18 +258,26 @@ async def get_cart_summary(
     current_user: Dict[str, Any] = Depends(get_current_user)
 ) -> Dict[str, Any]:
     """
-    Get cart summary (for header display).
+    Get cart summary for header badge display.
+
+    Lightweight endpoint returning only count and total.
+    Used by navbar to show cart icon badge.
 
     Returns:
-        Item count and total
+        CartSummary with item_count and total
+
+    Note:
+        This is slightly more expensive than a simple count
+        because we need to fetch product prices for the total.
+        Consider caching if this becomes a bottleneck.
     """
     cart = await get_or_create_cart(current_user["id"])
     items = cart.get("items", [])
 
-    # Quick calculation without full enrichment
+    # Sum quantities for item count
     item_count = sum(item.get("quantity", 0) for item in items)
 
-    # Calculate rough total
+    # Calculate total by fetching current prices
     total = 0.0
     for item in items:
         product = await product_repo.get_by_id(item["product_id"])
@@ -137,11 +298,25 @@ async def add_to_cart(
     """
     Add item to cart.
 
-    Args:
-        item_data: Product ID and quantity
+    If product already in cart, quantity is increased.
+    Validates stock before adding.
+
+    Request Body:
+        {
+            "product_id": "prod123",
+            "quantity": 2
+        }
 
     Returns:
-        Updated cart
+        Updated cart with all items
+
+    Raises:
+        404: Product not found or inactive
+        400: Insufficient stock
+
+    Example:
+        POST /cart/items
+        {"product_id": "abc123", "quantity": 1}
     """
     # Verify product exists and is active
     product = await product_repo.get_by_id(item_data.product_id)
@@ -151,7 +326,7 @@ async def add_to_cart(
             detail="Product not found"
         )
 
-    # Check stock
+    # Check stock availability
     stock = product.get("stock_quantity", 0)
     if stock < item_data.quantity:
         raise HTTPException(
@@ -170,7 +345,7 @@ async def add_to_cart(
     )
 
     if existing_index is not None:
-        # Update quantity
+        # Product already in cart - increase quantity
         new_quantity = items[existing_index]["quantity"] + item_data.quantity
         if new_quantity > stock:
             raise HTTPException(
@@ -179,16 +354,16 @@ async def add_to_cart(
             )
         items[existing_index]["quantity"] = new_quantity
     else:
-        # Add new item
+        # New product - add to cart
         items.append({
             "product_id": item_data.product_id,
             "quantity": item_data.quantity,
         })
 
-    # Update cart
+    # Save updated cart
     await cart_repo.update(cart["id"], {"items": items})
 
-    # Return updated cart
+    # Return updated cart with enriched data
     cart = await cart_repo.get_by_id(cart["id"])
     enriched_items = await enrich_cart_items(cart.get("items", []))
     totals = await calculate_cart_totals(enriched_items)
@@ -205,17 +380,30 @@ async def update_cart_item(
     """
     Update cart item quantity.
 
-    Args:
-        product_id: Product ID
-        item_data: New quantity (0 to remove)
+    Set quantity to 0 to remove the item.
+    Validates stock before updating.
+
+    Path Parameters:
+        product_id: Product ID in cart
+
+    Request Body:
+        {"quantity": 3}  or  {"quantity": 0} to remove
 
     Returns:
         Updated cart
+
+    Raises:
+        404: Item not in cart
+        400: Insufficient stock
+
+    Example:
+        PUT /cart/items/abc123
+        {"quantity": 5}
     """
     cart = await get_or_create_cart(current_user["id"])
     items = cart.get("items", [])
 
-    # Find item
+    # Find item in cart
     item_index = next(
         (i for i, item in enumerate(items) if item["product_id"] == product_id),
         None
@@ -228,10 +416,10 @@ async def update_cart_item(
         )
 
     if item_data.quantity == 0:
-        # Remove item
+        # Quantity 0 = remove item from cart
         items.pop(item_index)
     else:
-        # Check stock
+        # Validate new quantity against stock
         product = await product_repo.get_by_id(product_id)
         if product:
             stock = product.get("stock_quantity", 0)
@@ -243,10 +431,10 @@ async def update_cart_item(
 
         items[item_index]["quantity"] = item_data.quantity
 
-    # Update cart
+    # Save updated cart
     await cart_repo.update(cart["id"], {"items": items})
 
-    # Return updated cart
+    # Return updated cart with enriched data
     cart = await cart_repo.get_by_id(cart["id"])
     enriched_items = await enrich_cart_items(cart.get("items", []))
     totals = await calculate_cart_totals(enriched_items)
@@ -260,13 +448,22 @@ async def remove_from_cart(
     current_user: Dict[str, Any] = Depends(get_current_user)
 ) -> Dict[str, Any]:
     """
-    Remove item from cart.
+    Remove item from cart completely.
 
-    Args:
+    Unlike PUT with quantity=0, this is explicit removal.
+    Returns updated cart after removal.
+
+    Path Parameters:
         product_id: Product ID to remove
 
     Returns:
         Updated cart
+
+    Raises:
+        404: Item not in cart
+
+    Example:
+        DELETE /cart/items/abc123
     """
     cart = await get_or_create_cart(current_user["id"])
     items = cart.get("items", [])
@@ -274,16 +471,17 @@ async def remove_from_cart(
     # Filter out the item
     new_items = [item for item in items if item["product_id"] != product_id]
 
+    # Check if anything was actually removed
     if len(new_items) == len(items):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Item not found in cart"
         )
 
-    # Update cart
+    # Save updated cart
     await cart_repo.update(cart["id"], {"items": new_items})
 
-    # Return updated cart
+    # Return updated cart with enriched data
     cart = await cart_repo.get_by_id(cart["id"])
     enriched_items = await enrich_cart_items(cart.get("items", []))
     totals = await calculate_cart_totals(enriched_items)
@@ -297,5 +495,15 @@ async def clear_cart(
 ) -> None:
     """
     Clear all items from cart.
+
+    Used after successful order placement or manual clear.
+    Returns 204 No Content on success.
+
+    Example:
+        DELETE /cart
+
+    Note:
+        The cart document is not deleted, only items are cleared.
+        This preserves the cart ID for future use.
     """
     await cart_repo.clear_cart(current_user["id"])

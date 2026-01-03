@@ -1,0 +1,749 @@
+/**
+ * ==============================================================================
+ * ShopEase Admin Dashboard Styles (admin.css)
+ * ==============================================================================
+ *
+ * PURPOSE:
+ * --------
+ * Custom CSS for the ShopEase admin dashboard.
+ * Provides styles for sidebar navigation, stats cards, data tables,
+ * and admin-specific UI components.
+ *
+ * ARCHITECTURE:
+ * -------------
+ * This stylesheet is organized into logical sections:
+ *
+ * 1. LAYOUT
+ *    - Admin wrapper (sidebar + content area)
+ *    - Sidebar navigation
+ *    - Content area
+ *
+ * 2. DASHBOARD
+ *    - Stats cards
+ *    - Quick actions
+ *    - Recent orders table
+ *
+ * 3. DATA TABLES
+ *    - Table styling
+ *    - Status badges
+ *    - Action buttons
+ *
+ * 4. FORMS & MODALS
+ *    - Product form
+ *    - Order details modal
+ *    - User details modal
+ *
+ * 5. UTILITIES
+ *    - Admin-specific helpers
+ *    - Responsive adjustments
+ *
+ * COLOR PALETTE:
+ * --------------
+ * Uses the same palette as main styles.css:
+ * - Primary Blue:    #2874f0 (active states)
+ * - Secondary:       #ff9f00 (warnings)
+ * - Success:         #28a745 (delivered, active)
+ * - Danger:          #dc3545 (cancelled, delete)
+ * - Info:            #17a2b8 (processing)
+ * - Background:      #f8f9fa (content area)
+ *
+ * DEPENDENCIES:
+ * -------------
+ * - Bootstrap 5.3.2 (loaded before this file)
+ * - styles.css (main styles loaded before this file)
+ * - Bootstrap Icons 1.11.1 (for icons)
+ */
+
+
+/* ==============================================================================
+   1. LAYOUT - Admin page structure
+   ============================================================================== */
+
+/**
+ * Admin Wrapper
+ * Container for the entire admin layout (sidebar + content)
+ * Uses flexbox for side-by-side layout
+ */
+.admin-wrapper {
+    display: flex;
+    min-height: 100vh;
+}
+
+/**
+ * Admin Sidebar
+ * Fixed navigation on the left side
+ * Contains logo, nav links, and user info
+ */
+.admin-sidebar {
+    width: 250px;
+    background: linear-gradient(180deg, #2874f0 0%, #1a5dc8 100%);
+    color: #fff;
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.3s ease;
+}
+
+/**
+ * Sidebar Header
+ * Contains logo and brand name
+ */
+.admin-sidebar-header {
+    padding: 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.admin-sidebar-header h4 {
+    margin: 0;
+    font-weight: 600;
+    font-size: 1.25rem;
+}
+
+.admin-sidebar-header .admin-badge {
+    background: rgba(255, 255, 255, 0.2);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+}
+
+/**
+ * Sidebar Navigation
+ * Vertical nav links with icons
+ */
+.admin-nav {
+    flex: 1;
+    padding: 20px 0;
+    overflow-y: auto;
+}
+
+.admin-nav-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 20px;
+    color: rgba(255, 255, 255, 0.8);
+    text-decoration: none;
+    transition: all 0.2s ease;
+    gap: 12px;
+    cursor: pointer;
+}
+
+.admin-nav-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.admin-nav-item.active {
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+    border-left: 4px solid #fff;
+    padding-left: 16px;
+}
+
+.admin-nav-item i {
+    font-size: 1.25rem;
+    width: 24px;
+    text-align: center;
+}
+
+/**
+ * Sidebar Footer
+ * User info and logout
+ */
+.admin-sidebar-footer {
+    padding: 15px 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.admin-user-avatar {
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.admin-user-info {
+    flex: 1;
+}
+
+.admin-user-info .name {
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.admin-user-info .role {
+    font-size: 0.75rem;
+    opacity: 0.8;
+}
+
+/**
+ * Main Content Area
+ * Right side content with padding for sidebar
+ */
+.admin-content {
+    flex: 1;
+    margin-left: 250px;
+    background: #f8f9fa;
+    min-height: 100vh;
+}
+
+/**
+ * Content Header
+ * Page title and breadcrumb
+ */
+.admin-header {
+    background: #fff;
+    padding: 20px 30px;
+    border-bottom: 1px solid #e0e0e0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.admin-header h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #212121;
+}
+
+/**
+ * Content Body
+ * Main content area with padding
+ */
+.admin-body {
+    padding: 30px;
+}
+
+
+/* ==============================================================================
+   2. DASHBOARD - Stats cards and overview
+   ============================================================================== */
+
+/**
+ * Stats Cards Grid
+ * 4-column grid for stats overview
+ */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+/**
+ * Stats Card
+ * Individual stat card with icon, value, and label
+ */
+.stat-card {
+    background: #fff;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    transition: transform 0.2s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+}
+
+.stat-card-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+/* Icon color variants */
+.stat-card-icon.products { background: rgba(40, 116, 240, 0.1); color: #2874f0; }
+.stat-card-icon.orders { background: rgba(255, 159, 0, 0.1); color: #ff9f00; }
+.stat-card-icon.users { background: rgba(40, 167, 69, 0.1); color: #28a745; }
+.stat-card-icon.revenue { background: rgba(111, 66, 193, 0.1); color: #6f42c1; }
+
+.stat-card-content h3 {
+    margin: 0;
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #212121;
+}
+
+.stat-card-content p {
+    margin: 0;
+    font-size: 0.9rem;
+    color: #878787;
+}
+
+/**
+ * Order Status Chart
+ * Displays order breakdown by status
+ */
+.status-breakdown {
+    background: #fff;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    margin-bottom: 30px;
+}
+
+.status-breakdown h5 {
+    margin-bottom: 15px;
+    font-weight: 600;
+}
+
+.status-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.status-item:last-child {
+    border-bottom: none;
+}
+
+.status-item .label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.status-item .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.status-item .count {
+    font-weight: 600;
+}
+
+
+/* ==============================================================================
+   3. DATA TABLES - Orders, products, users
+   ============================================================================== */
+
+/**
+ * Admin Card
+ * Card container for tables and content
+ */
+.admin-card {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    margin-bottom: 20px;
+}
+
+.admin-card-header {
+    padding: 15px 20px;
+    border-bottom: 1px solid #e0e0e0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.admin-card-header h5 {
+    margin: 0;
+    font-weight: 600;
+}
+
+.admin-card-body {
+    padding: 0;
+}
+
+/**
+ * Admin Table
+ * Data table styling
+ */
+.admin-table {
+    width: 100%;
+    margin: 0;
+}
+
+.admin-table thead th {
+    background: #f8f9fa;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #212121;
+    padding: 12px 15px;
+    border-bottom: 2px solid #e0e0e0;
+    white-space: nowrap;
+}
+
+.admin-table tbody td {
+    padding: 12px 15px;
+    vertical-align: middle;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.admin-table tbody tr:hover {
+    background: #f8f9fa;
+}
+
+.admin-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/**
+ * Status Badges
+ * Colored badges for order/user status
+ */
+.status-badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    display: inline-block;
+}
+
+/* Order status colors */
+.status-badge.pending { background: #fff3cd; color: #856404; }
+.status-badge.confirmed { background: #d1ecf1; color: #0c5460; }
+.status-badge.processing { background: #cce5ff; color: #004085; }
+.status-badge.shipped { background: #e2d5f1; color: #5a3a8c; }
+.status-badge.out_for_delivery { background: #d4edda; color: #155724; }
+.status-badge.delivered { background: #c3e6cb; color: #155724; }
+.status-badge.cancelled { background: #f8d7da; color: #721c24; }
+.status-badge.returned { background: #ffeeba; color: #856404; }
+
+/* User status colors */
+.status-badge.active { background: #c3e6cb; color: #155724; }
+.status-badge.inactive { background: #f8d7da; color: #721c24; }
+.status-badge.admin-badge-role { background: #cce5ff; color: #004085; }
+
+/**
+ * Table Action Buttons
+ * Small action buttons in table rows
+ */
+.action-btn {
+    padding: 5px 10px;
+    font-size: 0.8rem;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.action-btn.view { background: #e8f4fd; color: #2874f0; }
+.action-btn.view:hover { background: #2874f0; color: #fff; }
+
+.action-btn.edit { background: #fff3cd; color: #856404; }
+.action-btn.edit:hover { background: #ffc107; color: #212121; }
+
+.action-btn.delete { background: #f8d7da; color: #721c24; }
+.action-btn.delete:hover { background: #dc3545; color: #fff; }
+
+.action-btn.toggle { background: #d4edda; color: #155724; }
+.action-btn.toggle:hover { background: #28a745; color: #fff; }
+
+/**
+ * Product Image in Table
+ * Small product thumbnail
+ */
+.product-thumb {
+    width: 50px;
+    height: 50px;
+    object-fit: cover;
+    border-radius: 4px;
+    border: 1px solid #e0e0e0;
+}
+
+/**
+ * Search and Filter Bar
+ * Controls above data tables
+ */
+.table-controls {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.table-controls .search-input {
+    flex: 1;
+    min-width: 200px;
+}
+
+.table-controls .filter-select {
+    min-width: 150px;
+}
+
+
+/* ==============================================================================
+   4. FORMS & MODALS - Product form, order details
+   ============================================================================== */
+
+/**
+ * Admin Modal
+ * Large modal for forms and details
+ */
+.admin-modal .modal-dialog {
+    max-width: 700px;
+}
+
+.admin-modal .modal-header {
+    background: #f8f9fa;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.admin-modal .modal-title {
+    font-weight: 600;
+}
+
+/**
+ * Form Groups
+ * Consistent form styling
+ */
+.admin-form .form-label {
+    font-weight: 500;
+    color: #212121;
+    margin-bottom: 5px;
+}
+
+.admin-form .form-control,
+.admin-form .form-select {
+    border-radius: 6px;
+    border: 1px solid #e0e0e0;
+    padding: 10px 12px;
+}
+
+.admin-form .form-control:focus,
+.admin-form .form-select:focus {
+    border-color: #2874f0;
+    box-shadow: 0 0 0 3px rgba(40, 116, 240, 0.1);
+}
+
+/**
+ * Order Details Modal
+ * Layout for viewing order info
+ */
+.order-detail-section {
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.order-detail-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.order-detail-section h6 {
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: #212121;
+}
+
+.order-item-row {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 10px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.order-item-row:last-child {
+    border-bottom: none;
+}
+
+.order-item-row img {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 4px;
+}
+
+.order-item-details {
+    flex: 1;
+}
+
+.order-item-details .name {
+    font-weight: 500;
+}
+
+.order-item-details .meta {
+    color: #878787;
+    font-size: 0.85rem;
+}
+
+
+/* ==============================================================================
+   5. UTILITIES - Admin-specific helpers
+   ============================================================================== */
+
+/**
+ * Empty State
+ * Display when no data available
+ */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #878787;
+}
+
+.empty-state i {
+    font-size: 4rem;
+    margin-bottom: 15px;
+    opacity: 0.5;
+}
+
+.empty-state h5 {
+    margin-bottom: 10px;
+}
+
+/**
+ * Pagination
+ * Table pagination controls
+ */
+.admin-pagination {
+    padding: 15px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-top: 1px solid #e0e0e0;
+}
+
+.admin-pagination .page-info {
+    color: #878787;
+    font-size: 0.9rem;
+}
+
+/**
+ * Loading State
+ * Table loading overlay
+ */
+.admin-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 60px;
+    color: #2874f0;
+}
+
+
+/* ==============================================================================
+   6. RESPONSIVE - Mobile adjustments
+   ============================================================================== */
+
+/**
+ * Mobile Sidebar Toggle
+ * Hidden by default, shown on mobile
+ */
+.sidebar-toggle {
+    display: none;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #212121;
+}
+
+/**
+ * Responsive Breakpoints
+ */
+@media (max-width: 991px) {
+    /* Show sidebar toggle on tablet/mobile */
+    .sidebar-toggle {
+        display: block;
+    }
+
+    /* Sidebar becomes overlay */
+    .admin-sidebar {
+        transform: translateX(-100%);
+    }
+
+    .admin-sidebar.open {
+        transform: translateX(0);
+    }
+
+    /* Content takes full width */
+    .admin-content {
+        margin-left: 0;
+    }
+
+    /* Stats grid becomes 2 columns */
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 576px) {
+    /* Stats grid becomes 1 column */
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    /* Admin header stacks */
+    .admin-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    /* Reduce padding on mobile */
+    .admin-body {
+        padding: 15px;
+    }
+
+    /* Table horizontal scroll */
+    .admin-table-wrapper {
+        overflow-x: auto;
+    }
+
+    .admin-table {
+        min-width: 700px;
+    }
+
+    /* Table controls stack */
+    .table-controls {
+        flex-direction: column;
+    }
+
+    .table-controls .search-input,
+    .table-controls .filter-select {
+        width: 100%;
+    }
+}
+
+/**
+ * Print Styles
+ * Clean layout for printing reports
+ */
+@media print {
+    .admin-sidebar,
+    .sidebar-toggle,
+    .action-btn {
+        display: none !important;
+    }
+
+    .admin-content {
+        margin-left: 0;
+    }
+
+    .admin-card {
+        box-shadow: none;
+        border: 1px solid #e0e0e0;
+    }
+}

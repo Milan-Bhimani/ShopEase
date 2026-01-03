@@ -1,4 +1,111 @@
-/* E-Commerce App Custom Styles */
+/**
+ * ==============================================================================
+ * ShopEase E-Commerce Custom Styles (styles.css)
+ * ==============================================================================
+ *
+ * PURPOSE:
+ * --------
+ * Custom CSS for the ShopEase e-commerce application.
+ * Built on top of Bootstrap 5 with Flipkart-inspired design.
+ *
+ * ARCHITECTURE:
+ * -------------
+ * This stylesheet is organized into logical sections:
+ *
+ * 1. CSS VARIABLES (Custom Properties)
+ *    - Color palette based on Flipkart's design
+ *    - Primary blue (#2874f0), Secondary orange (#ff9f00)
+ *    - Consistent shadows and borders
+ *
+ * 2. BASE STYLES
+ *    - Body defaults, font stack
+ *    - Box-sizing reset
+ *
+ * 3. NAVIGATION
+ *    - Navbar with gradient background
+ *    - Search bar with button
+ *    - Cart badge positioning
+ *    - Search dropdown suggestions
+ *
+ * 4. PRODUCT DISPLAY
+ *    - Category bar (horizontal scroll)
+ *    - Product cards (grid view)
+ *    - Product list items (search results)
+ *    - Product detail page
+ *
+ * 5. CART & CHECKOUT
+ *    - Cart item cards
+ *    - Quantity selector
+ *    - Order summary sticky card
+ *    - Payment method cards
+ *    - Address selection cards
+ *    - Bank option buttons
+ *
+ * 6. USER ACCOUNT
+ *    - Auth pages (login/signup)
+ *    - Profile sidebar
+ *    - Order history items
+ *
+ * 7. FEEDBACK & STATES
+ *    - Toast notifications
+ *    - Loading spinners
+ *    - Skeleton loaders
+ *
+ * 8. BUTTONS & UTILITIES
+ *    - Custom button variants
+ *    - Cursor utilities
+ *    - Responsive helpers
+ *
+ * COLOR PALETTE:
+ * --------------
+ * Primary Blue:    #2874f0 (Flipkart blue - links, buttons)
+ * Primary Dark:    #1a5dc8 (hover states)
+ * Secondary:       #ff9f00 (cart button, badges)
+ * Success:         #388e3c (ratings, discounts)
+ * Danger:          #dc3545 (errors, delete)
+ * Background:      #f1f3f6 (page background)
+ * White:           #ffffff (cards)
+ * Text Dark:       #212121 (primary text)
+ * Text Muted:      #878787 (secondary text)
+ * Border:          #e0e0e0 (card borders)
+ *
+ * RESPONSIVE BREAKPOINTS:
+ * -----------------------
+ * Uses Bootstrap's breakpoints:
+ * - xs: <576px (mobile)
+ * - sm: 576px-767px (large mobile)
+ * - md: 768px-991px (tablet)
+ * - lg: 992px-1199px (desktop)
+ * - xl: 1200px+ (large desktop)
+ *
+ * Custom mobile styles at 768px for:
+ * - Search bar full width
+ * - Product cards smaller images
+ * - Cart items stacked vertically
+ * - Category bar horizontal scroll
+ *
+ * ANIMATIONS:
+ * -----------
+ * 1. slideIn: Toast notification entrance
+ * 2. shimmer: Skeleton loader gradient movement
+ *
+ * DEPENDENCIES:
+ * -------------
+ * - Bootstrap 5.3.2 (loaded before this file)
+ * - Bootstrap Icons 1.11.1 (for icons)
+ * - Google Fonts: Roboto (system font fallback)
+ *
+ * USAGE:
+ * ------
+ * This file is loaded in all HTML pages:
+ *   <link href="/css/styles.css" rel="stylesheet">
+ *
+ * After Bootstrap CSS but before page-specific styles.
+ */
+
+/* ==============================================================================
+   CSS CUSTOM PROPERTIES (Variables)
+   ============================================================================== */
 
 :root {
     --primary-color: #2874f0;
@@ -26,7 +133,12 @@ body {
     min-height: 100vh;
 }
 
-/* Navbar Styles */
+/* ==============================================================================
+   NAVIGATION STYLES
+
+   Navbar with gradient background matching Flipkart design.
+   Includes search bar, cart badge, and user dropdown.
+   ============================================================================== */
 .navbar-brand {
     font-weight: 700;
     font-size: 1.5rem;
@@ -251,7 +363,13 @@ body {
 }
 
 
-/* Category Bar */
+/* ==============================================================================
+   PRODUCT DISPLAY STYLES
+
+   Category bar, product cards (grid), product list (search), and detail page.
+   ============================================================================== */
+
+/* Category Bar - Horizontal scrollable list of categories */
 .category-bar {
     background: var(--white);
     border-bottom: 1px solid var(--border-color);
@@ -361,6 +479,12 @@ body {
 .product-thumbnails img.active {
     border-color: var(--primary-color);
 }
+
+/* ==============================================================================
+   CART & CHECKOUT STYLES
+
+   Cart items, quantity selector, order summary, payment methods, addresses.
+   ============================================================================== */
 
 /* Cart Page */
 .cart-item {
@@ -562,6 +686,12 @@ body {
     color: var(--success-color);
 }
 
+/* ==============================================================================
+   USER ACCOUNT STYLES
+
+   Profile sidebar, order history, auth pages.
+   ============================================================================== */
+
 /* Profile Page */
 .profile-sidebar {
     background: var(--white);
@@ -638,6 +768,12 @@ body {
     text-align: center;
 }
 
+/* ==============================================================================
+   FEEDBACK & STATE STYLES
+
+   Alerts, loading spinners, skeleton loaders, animations.
+   ============================================================================== */
+
 /* Alerts and Messages */
 .alert-floating {
     position: fixed;
@@ -679,6 +815,10 @@ body {
     100% { background-position: -200% 0; }
 }
 
+/* ==============================================================================
+   FOOTER STYLES
+   ============================================================================== */
+
 /* Footer */
 .footer {
     background: #172337;
@@ -706,6 +846,12 @@ body {
 .footer a:hover {
     text-decoration: underline;
 }
+
+/* ==============================================================================
+   BUTTON & UTILITY STYLES
+
+   Custom button variants, cursor utilities, responsive helpers.
+   ============================================================================== */
 
 /* Buttons */
 .btn-primary {

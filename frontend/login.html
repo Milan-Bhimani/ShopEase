@@ -1,3 +1,77 @@
+<!--
+================================================================================
+ShopEase Login Page (login.html)
+================================================================================
+
+PURPOSE:
+--------
+User authentication page with two login methods:
+1. Password-based login (traditional)
+2. OTP-based login (passwordless via email)
+
+AUTHENTICATION FLOW:
+--------------------
+PASSWORD LOGIN:
+  1. User enters email + password
+  2. POST /api/auth/login
+  3. On success: Store token → Redirect to return URL or home
+  4. On failure: Show error message
+
+OTP LOGIN:
+  1. User enters email
+  2. POST /api/auth/otp/send (purpose: login)
+  3. OTP modal opens with 6-digit input
+  4. User enters OTP from email
+  5. POST /api/auth/login-otp
+  6. On success: Store token → Redirect
+
+OTP FEATURES:
+-------------
+- 6 individual input boxes (like banking apps)
+- Auto-focus moves to next box on input
+- Paste support (can paste full 6-digit code)
+- Backspace moves to previous box
+- 10-minute expiry timer
+- Resend button (enabled after 1 minute)
+- Auto-submit when 6 digits entered
+
+RETURN URL:
+-----------
+When redirected from protected pages, the original URL is preserved:
+  /login.html?return=/checkout.html
+
+After successful login, user is redirected back to that URL.
+Handled by: Utils.getUrlParam('return')
+
+UI COMPONENTS:
+--------------
+1. Login Method Tabs (Password / Email OTP)
+2. Password Form:
+   - Email input
+   - Password input with show/hide toggle
+   - Submit button with loading spinner
+3. OTP Form:
+   - Email input only
+   - Send OTP button with loading spinner
+4. OTP Verification Modal:
+   - 6-digit input boxes
+   - Timer countdown
+   - Verify button
+   - Resend button
+   - Cancel/Back button
+
+CSS:
+----
+Custom tab styles are inline in <style> tag.
+Auth container styles in styles.css.
+
+SECURITY:
+---------
+- Already authenticated users are redirected away
+- Password visibility toggle doesn't leak password
+- OTP expires after 10 minutes
+- Rate limiting on resend (1 min minimum)
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -8,6 +82,36 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
     <link href="/css/styles.css" rel="stylesheet">
+    <style>
+        .login-method-tabs {
+            display: flex;
+            border-bottom: 2px solid #e9ecef;
+            margin-bottom: 1.5rem;
+        }
+        .login-method-tab {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            text-align: center;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            color: #6c757d;
+            transition: all 0.2s;
+        }
+        .login-method-tab:hover {
+            color: #0d6efd;
+        }
+        .login-method-tab.active {
+            color: #0d6efd;
+            border-bottom-color: #0d6efd;
+            font-weight: 500;
+        }
+        .login-method-tab i {
+            display: block;
+            font-size: 1.5rem;
+            margin-bottom: 0.25rem;
+        }
+    </style>
 </head>
 <body class="bg-light">
     <!-- Navbar -->
@@ -22,18 +126,30 @@
     <!-- Login Form -->
     <div class="auth-container">
         <div class="auth-card">
-            <h2><i class="bi bi-person-circle text-primary me-2"></i>Login</h2>
+            <h2 class="mb-4"><i class="bi bi-person-circle text-primary me-2"></i>Login</h2>
+
+            <!-- Login Method Tabs -->
+            <div class="login-method-tabs">
+                <div class="login-method-tab active" onclick="switchLoginMethod('password')" id="tab-password">
+                    <i class="bi bi-key"></i>
+                    Password
+                </div>
+                <div class="login-method-tab" onclick="switchLoginMethod('otp')" id="tab-otp">
+                    <i class="bi bi-envelope"></i>
+                    Email OTP
+                </div>
+            </div>
 
             <div id="error-message" class="alert alert-danger d-none"></div>
 
-            <form id="login-form" onsubmit="handleLogin(event)">
+            <!-- Password Login Form -->
+            <form id="password-login-form" onsubmit="handlePasswordLogin(event)">
                 <div class="mb-3">
-                    <label for="email" class="form-label">Email address</label>
-                    <input type="email" class="form-control" id="email" placeholder="Enter your email" required>
-                    <div class="invalid-feedback">Please enter a valid email address.</div>
+                    <label for="email-password" class="form-label">Email address</label>
+                    <input type="email" class="form-control" id="email-password" placeholder="Enter your email" required>
                 </div>
 
-                <div class="mb-3">
+                <div class="mb-4">
                     <label for="password" class="form-label">Password</label>
                     <div class="input-group">
                         <input type="password" class="form-control" id="password" placeholder="Enter your password" required>
@@ -41,17 +157,25 @@
                             <i class="bi bi-eye" id="password-icon"></i>
                         </button>
                     </div>
-                    <div class="invalid-feedback">Password is required.</div>
                 </div>
 
-                <p class="small text-muted mb-3">
-                    <i class="bi bi-shield-check me-1"></i>
-                    For your security, we'll send a verification code to your email
-                </p>
+                <button type="submit" class="btn btn-primary w-100 py-2" id="password-login-btn">
+                    <span id="password-btn-text">Login</span>
+                    <span id="password-btn-spinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
+                </button>
+            </form>
 
-                <button type="submit" class="btn btn-primary w-100 py-2" id="login-btn">
-                    <span id="btn-text">Continue</span>
-                    <span id="btn-spinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
+            <!-- OTP Login Form -->
+            <form id="otp-login-form" onsubmit="handleOtpLogin(event)" style="display: none;">
+                <div class="mb-4">
+                    <label for="email-otp" class="form-label">Email address</label>
+                    <input type="email" class="form-control" id="email-otp" placeholder="Enter your email" required>
+                    <div class="form-text"><i class="bi bi-info-circle me-1"></i>We'll send a 6-digit code to your email</div>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100 py-2" id="otp-login-btn">
+                    <span id="otp-btn-text">Send OTP</span>
+                    <span id="otp-btn-spinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
                 </button>
             </form>
 
@@ -68,7 +192,7 @@
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title"><i class="bi bi-shield-lock me-2"></i>Verify Your Identity</h5>
+                    <h5 class="modal-title"><i class="bi bi-shield-lock me-2"></i>Verify Your Email</h5>
                 </div>
                 <div class="modal-body text-center py-4">
                     <div class="mb-3">
@@ -124,10 +248,10 @@
             window.location.href = returnUrl;
         }
 
-        // State
+        let currentMethod = 'password';
         let otpModal = null;
         let otpTimerInterval = null;
-        let pendingLogin = null;
+        let pendingEmail = null;
 
         document.addEventListener('DOMContentLoaded', () => {
             otpModal = new bootstrap.Modal(document.getElementById('otpModal'));
@@ -157,6 +281,20 @@
             });
         });
 
+        function switchLoginMethod(method) {
+            currentMethod = method;
+            const errorDiv = document.getElementById('error-message');
+            errorDiv.classList.add('d-none');
+
+            // Update tabs
+            document.getElementById('tab-password').classList.toggle('active', method === 'password');
+            document.getElementById('tab-otp').classList.toggle('active', method === 'otp');
+
+            // Show/hide forms
+            document.getElementById('password-login-form').style.display = method === 'password' ? 'block' : 'none';
+            document.getElementById('otp-login-form').style.display = method === 'otp' ? 'block' : 'none';
+        }
+
         function togglePassword() {
             const input = document.getElementById('password');
             const icon = document.getElementById('password-icon');
@@ -171,16 +309,13 @@
         }
 
         function handleOtpInput(input, index) {
-            // Only allow digits
             input.value = input.value.replace(/\D/g, '');
 
-            // Move to next input
             if (input.value && index < 5) {
                 const inputs = document.querySelectorAll('.otp-input');
                 inputs[index + 1].focus();
             }
 
-            // Auto-verify when all 6 digits entered
             const inputs = document.querySelectorAll('.otp-input');
             const otp = Array.from(inputs).map(i => i.value).join('');
             if (otp.length === 6) {
@@ -205,7 +340,7 @@
                     timerEl.textContent = 'Expired';
                     resendBtn.disabled = false;
                 } else {
-                    resendBtn.disabled = remaining > 540; // Enable after 1 minute
+                    resendBtn.disabled = remaining > 540;
                 }
                 remaining--;
             };
@@ -220,64 +355,79 @@
             });
         }
 
-        async function handleLogin(e) {
+        // Password Login
+        async function handlePasswordLogin(e) {
             e.preventDefault();
 
-            const email = document.getElementById('email').value.trim();
+            const email = document.getElementById('email-password').value.trim();
             const password = document.getElementById('password').value;
             const errorDiv = document.getElementById('error-message');
-            const btnText = document.getElementById('btn-text');
-            const btnSpinner = document.getElementById('btn-spinner');
-            const loginBtn = document.getElementById('login-btn');
+            const btnText = document.getElementById('password-btn-text');
+            const btnSpinner = document.getElementById('password-btn-spinner');
+            const btn = document.getElementById('password-login-btn');
 
-            // Reset error
             errorDiv.classList.add('d-none');
 
-            // Validate email
             if (!Utils.isValidEmail(email)) {
-                document.getElementById('email').classList.add('is-invalid');
+                errorDiv.textContent = 'Please enter a valid email address';
+                errorDiv.classList.remove('d-none');
                 return;
             }
-            document.getElementById('email').classList.remove('is-invalid');
 
-            // Show loading
-            loginBtn.disabled = true;
-            btnText.textContent = 'Verifying credentials...';
+            btn.disabled = true;
+            btnText.textContent = 'Logging in...';
             btnSpinner.classList.remove('d-none');
 
             try {
-                // First verify credentials and check if OTP is required
-                const preLoginResponse = await API.Auth.preLogin(email, password);
+                await API.Auth.login(email, password);
+                Utils.showToast('Login successful!');
 
-                // Store credentials for later
-                pendingLogin = { email, password };
+                const returnUrl = Utils.getUrlParam('return') || '/';
+                window.location.href = decodeURIComponent(returnUrl);
 
-                // Admin users skip OTP
-                if (!preLoginResponse.require_otp) {
-                    btnText.textContent = 'Logging in...';
+            } catch (error) {
+                errorDiv.textContent = error.message;
+                errorDiv.classList.remove('d-none');
+            } finally {
+                btn.disabled = false;
+                btnText.textContent = 'Login';
+                btnSpinner.classList.add('d-none');
+            }
+        }
 
-                    // Directly login without OTP
-                    await API.Auth.login(email, password);
-                    Utils.showToast('Login successful!');
+        // OTP Login - Step 1: Send OTP
+        async function handleOtpLogin(e) {
+            e.preventDefault();
 
-                    // Redirect
-                    const returnUrl = Utils.getUrlParam('return') || '/';
-                    window.location.href = decodeURIComponent(returnUrl);
-                    return;
-                }
+            const email = document.getElementById('email-otp').value.trim();
+            const errorDiv = document.getElementById('error-message');
+            const btnText = document.getElementById('otp-btn-text');
+            const btnSpinner = document.getElementById('otp-btn-spinner');
+            const btn = document.getElementById('otp-login-btn');
 
-                // Send OTP for non-admin users
-                btnText.textContent = 'Sending OTP...';
-                const otpResponse = await API.Auth.sendOTP(email, 'login');
+            errorDiv.classList.add('d-none');
+
+            if (!Utils.isValidEmail(email)) {
+                errorDiv.textContent = 'Please enter a valid email address';
+                errorDiv.classList.remove('d-none');
+                return;
+            }
+
+            btn.disabled = true;
+            btnText.textContent = 'Sending OTP...';
+            btnSpinner.classList.remove('d-none');
+
+            try {
+                pendingEmail = email;
+                const response = await API.Auth.sendOTP(email, 'login');
 
                 // Show OTP modal
                 document.getElementById('otp-email-display').textContent = email;
                 clearOtpInputs();
                 document.getElementById('otp-error').classList.add('d-none');
                 otpModal.show();
-                startOtpTimer(otpResponse.expires_in);
+                startOtpTimer(response.expires_in);
 
-                // Focus first OTP input
                 setTimeout(() => {
                     document.querySelector('.otp-input').focus();
                 }, 500);
@@ -285,21 +435,20 @@
             } catch (error) {
                 errorDiv.textContent = error.message;
                 errorDiv.classList.remove('d-none');
-                pendingLogin = null;
+                pendingEmail = null;
             } finally {
-                loginBtn.disabled = false;
-                btnText.textContent = 'Continue';
+                btn.disabled = false;
+                btnText.textContent = 'Send OTP';
                 btnSpinner.classList.add('d-none');
             }
         }
 
+        // OTP Login - Step 2: Verify OTP and Login
         async function verifyOtp() {
             const inputs = document.querySelectorAll('.otp-input');
             const otp = Array.from(inputs).map(i => i.value).join('');
 
-            if (otp.length !== 6) {
-                return;
-            }
+            if (otp.length !== 6) return;
 
             const btnText = document.getElementById('verify-btn-text');
             const btnSpinner = document.getElementById('verify-btn-spinner');
@@ -312,18 +461,12 @@
             errorDiv.classList.add('d-none');
 
             try {
-                // Verify OTP first
-                await API.Auth.verifyOTP(pendingLogin.email, otp, 'login');
-
-                btnText.textContent = 'Logging in...';
-
-                // Now complete login with credentials
-                await API.Auth.login(pendingLogin.email, pendingLogin.password);
+                // Login with OTP directly (backend verifies OTP and logs in)
+                await API.Auth.loginWithOTP(pendingEmail, otp);
 
                 otpModal.hide();
                 Utils.showToast('Login successful!');
 
-                // Redirect
                 const returnUrl = Utils.getUrlParam('return') || '/';
                 window.location.href = decodeURIComponent(returnUrl);
 
@@ -347,7 +490,7 @@
             resendBtn.textContent = 'Sending...';
 
             try {
-                const response = await API.Auth.resendOTP(pendingLogin.email, 'login');
+                const response = await API.Auth.resendOTP(pendingEmail, 'login');
                 clearOtpInputs();
                 errorDiv.classList.add('d-none');
                 startOtpTimer(response.expires_in);
@@ -363,7 +506,7 @@
 
         function cancelOtpVerification() {
             if (otpTimerInterval) clearInterval(otpTimerInterval);
-            pendingLogin = null;
+            pendingEmail = null;
             otpModal.hide();
         }
     </script>

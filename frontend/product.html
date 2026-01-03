@@ -1,3 +1,82 @@
+<!--
+================================================================================
+ShopEase Product Detail Page (product.html)
+================================================================================
+
+PURPOSE:
+--------
+Displays detailed information for a single product.
+This is where users decide to add items to cart or buy.
+
+URL PARAMETERS:
+---------------
+?id=PRODUCT_ID - Required. Product ID from Firestore.
+If missing, redirects to home page.
+
+PAGE SECTIONS:
+--------------
+1. BREADCRUMB NAVIGATION
+   - Home > Category > Product Name
+   - Dynamically updated from product data
+
+2. PRODUCT IMAGES (Left Column)
+   - Main large image
+   - Thumbnail gallery (if multiple images)
+   - Click thumbnails to change main image
+   - Fallback placeholder for missing images
+
+3. PRODUCT INFO (Right Column)
+   - Product name
+   - Rating and review count
+   - Price with discount display
+   - Stock status (in stock / out of stock)
+   - Quantity selector (+/- buttons)
+   - Add to Cart / Buy Now buttons
+
+4. PRODUCT DETAILS
+   - Description text
+   - Brand and SKU
+   - Specifications table (dynamic key-value pairs)
+
+5. DELIVERY INFO
+   - Free delivery threshold (₹500)
+   - COD availability
+   - Return policy
+
+6. RELATED PRODUCTS
+   - Products from same category
+   - Falls back to same brand if needed
+   - Maximum 4 products shown
+
+JAVASCRIPT FUNCTIONS:
+---------------------
+- loadProduct(): Fetches product data and renders page
+- changeMainImage(): Swaps main image when thumbnail clicked
+- updateQuantity(): +/- quantity buttons
+- validateQuantity(): Ensures quantity within stock limits
+- addToCart(): Adds item to cart (requires auth)
+- buyNow(): Adds to cart and goes to checkout
+- loadRelatedProducts(): Fetches similar products
+
+ADD TO CART FLOW:
+-----------------
+1. Check authentication (redirect if not logged in)
+2. Get selected quantity
+3. POST /api/cart/items
+4. Show success toast
+5. Update cart badge
+
+BUY NOW FLOW:
+-------------
+1. Same as Add to Cart
+2. Redirect to checkout page instead of staying
+
+AUTHENTICATION:
+---------------
+- Page is publicly accessible (for viewing)
+- Add to Cart / Buy Now require login
+- Uses Utils.requireAuth() guard
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -74,6 +153,14 @@
                 </div>
             </div>
         </div>
+
+        <!-- Related Products -->
+        <section class="mt-5" id="related-products-section" style="display: none;">
+            <h4 class="mb-4"><i class="bi bi-grid me-2"></i>Related Products</h4>
+            <div class="row" id="related-products">
+                <!-- Related products loaded dynamically -->
+            </div>
+        </section>
     </main>
 
     <!-- Footer -->
@@ -82,24 +169,27 @@
             <div class="row">
                 <div class="col-md-3 col-6 mb-4">
                     <h6>ABOUT</h6>
-                    <a href="#">Contact Us</a>
-                    <a href="#">About Us</a>
+                    <a href="/pages/contact.html">Contact Us</a>
+                    <a href="/pages/about.html">About Us</a>
+                    <a href="/pages/careers.html">Careers</a>
                 </div>
                 <div class="col-md-3 col-6 mb-4">
                     <h6>HELP</h6>
-                    <a href="#">Payments</a>
-                    <a href="#">Shipping</a>
-                    <a href="#">FAQ</a>
+                    <a href="/pages/payments.html">Payments</a>
+                    <a href="/pages/shipping.html">Shipping</a>
+                    <a href="/pages/help.html">FAQ & Help</a>
                 </div>
                 <div class="col-md-3 col-6 mb-4">
                     <h6>POLICY</h6>
-                    <a href="#">Return Policy</a>
-                    <a href="#">Terms of Use</a>
+                    <a href="/pages/returns.html">Return Policy</a>
+                    <a href="/pages/terms.html">Terms of Use</a>
+                    <a href="/pages/privacy.html">Privacy Policy</a>
                 </div>
                 <div class="col-md-3 col-6 mb-4">
                     <h6>SOCIAL</h6>
-                    <a href="#"><i class="bi bi-facebook me-2"></i>Facebook</a>
-                    <a href="#"><i class="bi bi-twitter me-2"></i>Twitter</a>
+                    <a href="https://facebook.com" target="_blank"><i class="bi bi-facebook me-2"></i>Facebook</a>
+                    <a href="https://twitter.com" target="_blank"><i class="bi bi-twitter me-2"></i>Twitter</a>
+                    <a href="https://instagram.com" target="_blank"><i class="bi bi-instagram me-2"></i>Instagram</a>
                 </div>
             </div>
             <hr class="border-secondary">
@@ -136,6 +226,9 @@
                 // Update breadcrumb
                 document.getElementById('breadcrumb-category').textContent = product.category;
                 document.getElementById('breadcrumb-product').textContent = product.name;
+
+                // Load related products
+                loadRelatedProducts(productId, product.category, product.brand);
 
                 const mainImage = product.thumbnail || product.images?.[0] || 'https://via.placeholder.com/400x400?text=No+Image';
                 const discount = product.discount_percentage;
@@ -316,6 +409,48 @@
                 window.location.href = '/checkout.html';
             } catch (error) {
                 Utils.showToast(error.message, 'error');
+            }
+        }
+
+        // Load related products from same category or brand
+        async function loadRelatedProducts(currentProductId, category, brand) {
+            const section = document.getElementById('related-products-section');
+            const container = document.getElementById('related-products');
+
+            try {
+                // Get products from same category
+                const response = await API.Products.getProducts({
+                    category: category,
+                    perPage: 8
+                });
+
+                // Filter out current product and limit to 4
+                let relatedProducts = response.products
+                    .filter(p => p.id !== currentProductId)
+                    .slice(0, 4);
+
+                // If not enough from category, try to add by same brand
+                if (relatedProducts.length < 4 && brand) {
+                    const brandResponse = await API.Products.getProducts({
+                        search: brand,
+                        perPage: 8
+                    });
+
+                    const brandProducts = brandResponse.products
+                        .filter(p => p.id !== currentProductId && !relatedProducts.find(rp => rp.id === p.id));
+
+                    relatedProducts = [...relatedProducts, ...brandProducts].slice(0, 4);
+                }
+
+                if (relatedProducts.length === 0) {
+                    return; // Don't show section if no related products
+                }
+
+                container.innerHTML = relatedProducts.map(p => Utils.createProductCard(p)).join('');
+                section.style.display = 'block';
+
+            } catch (error) {
+                console.error('Error loading related products:', error);
             }
         }
     </script>

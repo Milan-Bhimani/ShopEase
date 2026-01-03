@@ -1,32 +1,120 @@
 /**
- * E-Commerce API Client
- * Handles all API communication with the backend
+ * ==============================================================================
+ * E-Commerce API Client (api.js)
+ * ==============================================================================
+ *
+ * PURPOSE:
+ * --------
+ * This module handles all communication between the frontend and backend API.
+ * It provides a clean interface for making API calls with:
+ * - Automatic authentication header injection
+ * - Error handling and 401 redirects
+ * - Response caching for performance
+ * - Consistent JSON request/response handling
+ *
+ * ARCHITECTURE:
+ * -------------
+ * The module is organized into domain-specific API objects:
+ * - AuthAPI: Login, register, logout, OTP
+ * - UsersAPI: Profile management
+ * - ProductsAPI: Product listing and details
+ * - CartAPI: Shopping cart operations
+ * - AddressesAPI: Shipping address CRUD
+ * - OrdersAPI: Order placement and tracking
+ *
+ * All exposed via window.API for use in other scripts.
+ *
+ * AUTHENTICATION:
+ * ---------------
+ * JWT token is stored in localStorage and automatically
+ * added to request headers as: Authorization: Bearer <token>
+ *
+ * On 401 Unauthorized:
+ * - Token and user data are cleared
+ * - User is redirected to login page
+ * - Original URL is preserved for redirect back
+ *
+ * CACHING:
+ * --------
+ * GET requests for products and categories are cached for 5 minutes.
+ * This reduces API calls and improves performance.
+ * Cache is stored in memory (lost on page refresh).
+ *
+ * USAGE:
+ * ------
+ *   // Check authentication
+ *   if (API.isAuthenticated()) { ... }
+ *
+ *   // Login
+ *   const result = await API.Auth.login(email, password);
+ *
+ *   // Get products
+ *   const products = await API.Products.getProducts({ category: 'Electronics' });
+ *
+ *   // Add to cart
+ *   await API.Cart.addItem(productId, quantity);
  */
 
-// API Base URL - uses nginx proxy in Docker
+// ==============================================================================
+// CONFIGURATION
+// ==============================================================================
+
+// API Base URL - nginx proxy routes /api to backend
+// In production on Vercel, this would be the same origin
 const API_BASE_URL = '/api';
 
-// Store for auth token
+// ==============================================================================
+// AUTHENTICATION STATE
+// ==============================================================================
+
+// JWT token persisted in localStorage
+// Loaded on page load, cleared on logout
 let authToken = localStorage.getItem('authToken');
+
+// Current user object (cached from login response)
+// Contains: id, email, first_name, last_name, phone
 let currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
 
-// Simple cache for GET requests (5 minute TTL)
-const apiCache = new Map();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+// ==============================================================================
+// RESPONSE CACHING
+// ==============================================================================
 
+// Simple in-memory cache for GET requests
+// Reduces API calls for frequently accessed data
+const apiCache = new Map();
+
+// Cache time-to-live: 5 minutes
+// After this, cached data is considered stale
+const CACHE_TTL = 5 * 60 * 1000;
+
+/**
+ * Get cached data if still valid
+ * @param {string} key - Cache key
+ * @returns {any|null} - Cached data or null if expired/missing
+ */
 function getCached(key) {
     const cached = apiCache.get(key);
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
         return cached.data;
     }
+    // Remove expired cache entry
     apiCache.delete(key);
     return null;
 }
 
+/**
+ * Store data in cache with timestamp
+ * @param {string} key - Cache key
+ * @param {any} data - Data to cache
+ */
 function setCache(key, data) {
     apiCache.set(key, { data, timestamp: Date.now() });
 }
 
+/**
+ * Clear all cached data
+ * Called on logout or when data might be stale
+ */
 function clearCache() {
     apiCache.clear();
 }
@@ -208,6 +296,18 @@ const AuthAPI = {
             method: 'POST',
             body: JSON.stringify({ email, purpose }),
         });
+    },
+
+    /**
+     * Login with OTP (passwordless login)
+     */
+    async loginWithOTP(email, otp) {
+        const response = await apiRequest('/auth/login-otp', {
+            method: 'POST',
+            body: JSON.stringify({ email, otp }),
+        });
+        setAuth(response.access_token, response.user);
+        return response;
     },
 };
 
@@ -480,6 +580,182 @@ const OrdersAPI = {
     },
 };
 
+// ============================================================
+// Admin API
+// ============================================================
+// Admin-only endpoints for dashboard management.
+// All endpoints require admin authentication.
+
+const AdminAPI = {
+    // ----------------------------------------------------------
+    // Dashboard Stats
+    // ----------------------------------------------------------
+
+    /**
+     * Get dashboard statistics
+     * Returns product counts, order counts, user counts, and revenue
+     */
+    async getStats() {
+        return apiRequest('/admin/stats');
+    },
+
+    // ----------------------------------------------------------
+    // Product Management
+    // ----------------------------------------------------------
+
+    /**
+     * Get all products (including inactive)
+     * @param {Object} params - Query parameters
+     * @param {number} params.page - Page number (default 1)
+     * @param {number} params.perPage - Items per page (default 20)
+     * @param {string} params.search - Search term
+     * @param {string} params.category - Category filter
+     */
+    async getProducts(params = {}) {
+        const queryParams = new URLSearchParams();
+        if (params.page) queryParams.set('page', params.page);
+        if (params.perPage) queryParams.set('per_page', params.perPage);
+        if (params.search) queryParams.set('search', params.search);
+        if (params.category) queryParams.set('category', params.category);
+
+        const query = queryParams.toString();
+        return apiRequest(`/admin/products${query ? '?' + query : ''}`);
+    },
+
+    /**
+     * Toggle product active status
+     * @param {string} productId - Product ID
+     */
+    async toggleProductActive(productId) {
+        return apiRequest(`/admin/products/${productId}/toggle-active`, {
+            method: 'PUT',
+        });
+    },
+
+    /**
+     * Create new product
+     * Uses the existing products endpoint (admin only)
+     * @param {Object} productData - Product data
+     */
+    async createProduct(productData) {
+        return apiRequest('/products', {
+            method: 'POST',
+            body: JSON.stringify(productData),
+        });
+    },
+
+    /**
+     * Update product
+     * Uses the existing products endpoint (admin only)
+     * @param {string} productId - Product ID
+     * @param {Object} productData - Updated product data
+     */
+    async updateProduct(productId, productData) {
+        return apiRequest(`/products/${productId}`, {
+            method: 'PUT',
+            body: JSON.stringify(productData),
+        });
+    },
+
+    /**
+     * Delete product (soft delete)
+     * Uses the existing products endpoint (admin only)
+     * @param {string} productId - Product ID
+     */
+    async deleteProduct(productId) {
+        return apiRequest(`/products/${productId}`, {
+            method: 'DELETE',
+        });
+    },
+
+    // ----------------------------------------------------------
+    // Order Management
+    // ----------------------------------------------------------
+
+    /**
+     * Get all orders (admin view)
+     * @param {Object} params - Query parameters
+     * @param {number} params.page - Page number
+     * @param {number} params.perPage - Items per page
+     * @param {string} params.status - Status filter
+     * @param {string} params.search - Search term (order # or email)
+     */
+    async getOrders(params = {}) {
+        const queryParams = new URLSearchParams();
+        if (params.page) queryParams.set('page', params.page);
+        if (params.perPage) queryParams.set('per_page', params.perPage);
+        if (params.status) queryParams.set('status', params.status);
+        if (params.search) queryParams.set('search', params.search);
+
+        const query = queryParams.toString();
+        return apiRequest(`/admin/orders${query ? '?' + query : ''}`);
+    },
+
+    /**
+     * Get order details (admin view with customer info)
+     * @param {string} orderId - Order ID
+     */
+    async getOrder(orderId) {
+        return apiRequest(`/admin/orders/${orderId}`);
+    },
+
+    /**
+     * Update order status
+     * @param {string} orderId - Order ID
+     * @param {string} status - New status
+     * @param {string} notes - Optional notes about the status change
+     */
+    async updateOrderStatus(orderId, status, notes = null) {
+        return apiRequest(`/admin/orders/${orderId}/status`, {
+            method: 'PUT',
+            body: JSON.stringify({ status, notes }),
+        });
+    },
+
+    // ----------------------------------------------------------
+    // User Management
+    // ----------------------------------------------------------
+
+    /**
+     * Get all users
+     * @param {Object} params - Query parameters
+     * @param {number} params.page - Page number
+     * @param {number} params.perPage - Items per page
+     * @param {string} params.status - Status filter (active, inactive, admin)
+     * @param {string} params.search - Search term (name or email)
+     */
+    async getUsers(params = {}) {
+        const queryParams = new URLSearchParams();
+        if (params.page) queryParams.set('page', params.page);
+        if (params.perPage) queryParams.set('per_page', params.perPage);
+        if (params.status) queryParams.set('status', params.status);
+        if (params.search) queryParams.set('search', params.search);
+
+        const query = queryParams.toString();
+        return apiRequest(`/admin/users${query ? '?' + query : ''}`);
+    },
+
+    /**
+     * Get user details (admin view with order stats)
+     * @param {string} userId - User ID
+     */
+    async getUser(userId) {
+        return apiRequest(`/admin/users/${userId}`);
+    },
+
+    /**
+     * Toggle user active status
+     * @param {string} userId - User ID
+     * @param {boolean} isActive - New active status
+     */
+    async toggleUserStatus(userId, isActive) {
+        return apiRequest(`/admin/users/${userId}/status`, {
+            method: 'PUT',
+            body: JSON.stringify({ is_active: isActive }),
+        });
+    },
+};
+
 // Export for use in other scripts
 window.API = {
     Auth: AuthAPI,
@@ -488,6 +764,7 @@ window.API = {
     Cart: CartAPI,
     Addresses: AddressesAPI,
     Orders: OrdersAPI,
+    Admin: AdminAPI,
     isAuthenticated,
     getCurrentUser,
     clearAuth,

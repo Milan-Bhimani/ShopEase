@@ -1,3 +1,67 @@
+<!--
+================================================================================
+ShopEase Order Confirmation Page (confirmation.html)
+================================================================================
+
+PURPOSE:
+--------
+Displays order confirmation after successful checkout.
+Shows order details and payment confirmation.
+
+DATA SOURCE:
+------------
+Order data is passed via localStorage from checkout.html:
+  localStorage.setItem('lastOrder', JSON.stringify(result));
+
+If no order data found, redirects to home page.
+
+After displaying, the order data is CLEARED from localStorage
+to prevent showing stale data on refresh.
+
+DISPLAYED INFORMATION:
+----------------------
+1. SUCCESS MESSAGE
+   - Green checkmark icon
+   - "Order Placed Successfully!" heading
+   - Message from API (e.g., "Thank you for your order!")
+
+2. ORDER DETAILS
+   - Order Number (e.g., ORD-20240115-ABC123)
+   - Transaction ID
+   - Payment Method
+   - Total Amount
+
+3. PAYMENT STATUS
+   - COD: Blue info box - "Please keep ₹X ready"
+   - Online: Green success box - "Payment processed"
+
+4. WHAT'S NEXT
+   - Email confirmation reminder
+   - Shipping notification info
+   - Expected delivery time (5-7 days)
+
+5. ACTION BUTTONS
+   - View My Orders (goes to profile#orders)
+   - Continue Shopping (goes to home)
+
+ORDER RESULT STRUCTURE:
+-----------------------
+From API response:
+{
+  order_id: "abc123",
+  order_number: "ORD-20240115-ABC123",
+  transaction_id: "TXN123456789",
+  payment_method: "cod",
+  amount: 1999,
+  message: "Thank you for your order!"
+}
+
+SECURITY:
+---------
+- Data cleared after display (one-time view)
+- No sensitive card data stored
+- Order can be viewed again via profile page
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>

@@ -1,3 +1,96 @@
+<!--
+================================================================================
+ShopEase Search Results Page (search.html)
+================================================================================
+
+PURPOSE:
+--------
+Displays product search results.
+Accessible to all users (public page).
+
+URL PARAMETERS:
+---------------
+?q=SEARCH_QUERY - Search term to search for
+If empty, shows "Enter a search term" message.
+
+LAYOUT:
+-------
+LIST VIEW (not grid) for search results.
+Each product shows more details than grid cards.
+
+SEARCH HEADER:
+--------------
+- Title: "Search results for 'query'"
+- Results count: "N products found"
+- Sort dropdown: Relevance, Price, Name
+
+SEARCH RESULT ITEM:
+-------------------
+Each list item shows:
+- Product image (left)
+- Product info (center):
+  - Product name (clickable)
+  - Description
+  - Rating and review count
+  - Price with discount
+  - Category and brand badges
+- Actions (right):
+  - Add to Cart button
+  - View Details link
+
+FEATURES:
+---------
+1. Live Search Suggestions
+   - Same as home page
+   - Shows as-you-type suggestions
+   - Click suggestion to go to product
+
+2. Client-side Sorting
+   - Relevance (default, as returned by API)
+   - Price: Low to High
+   - Price: High to Low
+   - Name: A-Z
+
+3. Pagination
+   - "Load More Products" button
+   - Appends to existing results
+   - Maintains sort order
+
+4. Add to Cart
+   - Requires authentication
+   - Shows toast notification
+   - Updates cart badge
+
+JAVASCRIPT FUNCTIONS:
+---------------------
+- loadSearchResults(): Fetches search results from API
+- createListItem(): Creates HTML for single result
+- handleSort(): Client-side sorting
+- loadMoreResults(): Pagination
+- handleSearch(): Redirects on new search
+- addToCart(): Adds item to cart (requires auth)
+
+SEARCH API:
+-----------
+GET /api/products?search=query&page=1&per_page=10
+
+Returns:
+{
+  products: [...],
+  total: 42,
+  page: 1,
+  per_page: 10,
+  has_more: true
+}
+
+The search is case-insensitive and searches
+the product name field (name_lower in Firestore).
+
+AUTHENTICATION:
+---------------
+Page is PUBLIC for viewing.
+Add to Cart requires login.
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>

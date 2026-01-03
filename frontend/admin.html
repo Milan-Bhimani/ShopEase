@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<!--
+==============================================================================
+Admin Dashboard Page (admin.html)
+==============================================================================
+
+PURPOSE:
+--------
+Admin dashboard for ShopEase e-commerce platform.
+Provides management interfaces for products, orders, and users.
+
+SECTIONS:
+---------
+1. Dashboard   - Statistics overview (products, orders, users, revenue)
+2. Products    - View/Add/Edit/Delete products, toggle visibility
+3. Orders      - View all orders, update order status
+4. Users       - View users, toggle active status
+
+NAVIGATION:
+-----------
+Uses hash-based routing for section navigation:
+- #dashboard  -> Dashboard section
+- #products   -> Products section
+- #orders     -> Orders section
+- #users      -> Users section
+
+SECURITY:
+---------
+- Page checks for admin authentication on load
+- Non-admins are redirected to home page
+- All API calls require admin JWT token
+
+DEPENDENCIES:
+-------------
+- Bootstrap 5.3.2 (CSS framework)
+- Bootstrap Icons 1.11.1 (icon set)
+- styles.css (base styles)
+- admin.css (admin-specific styles)
+- utils.js (utility functions)
+- api.js (API client)
+- admin.js (admin page logic)
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - ShopEase</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link href="css/styles.css" rel="stylesheet">
+    <link href="css/admin.css" rel="stylesheet">
+</head>
+<body>
+    <!-- =========================================================================
+         ADMIN LAYOUT WRAPPER
+         Main container with sidebar and content area
+    ========================================================================= -->
+    <div class="admin-wrapper">
+
+        <!-- =====================================================================
+             SIDEBAR NAVIGATION
+             Fixed left sidebar with navigation links
+        ===================================================================== -->
+        <aside class="admin-sidebar" id="adminSidebar">
+            <!-- Sidebar Header: Logo and brand -->
+            <div class="admin-sidebar-header">
+                <i class="bi bi-shop fs-4"></i>
+                <h4>ShopEase</h4>
+                <span class="admin-badge">Admin</span>
+            </div>
+
+            <!-- Navigation Links -->
+            <nav class="admin-nav">
+                <!-- Dashboard Link -->
+                <a href="#dashboard" class="admin-nav-item active" data-section="dashboard">
+                    <i class="bi bi-speedometer2"></i>
+                    <span>Dashboard</span>
+                </a>
+
+                <!-- Products Link -->
+                <a href="#products" class="admin-nav-item" data-section="products">
+                    <i class="bi bi-box-seam"></i>
+                    <span>Products</span>
+                </a>
+
+                <!-- Orders Link -->
+                <a href="#orders" class="admin-nav-item" data-section="orders">
+                    <i class="bi bi-receipt"></i>
+                    <span>Orders</span>
+                </a>
+
+                <!-- Users Link -->
+                <a href="#users" class="admin-nav-item" data-section="users">
+                    <i class="bi bi-people"></i>
+                    <span>Users</span>
+                </a>
+
+                <!-- Divider -->
+                <hr class="mx-3 my-3" style="border-color: rgba(255,255,255,0.1);">
+
+                <!-- Back to Store Link -->
+                <a href="index.html" class="admin-nav-item">
+                    <i class="bi bi-arrow-left-circle"></i>
+                    <span>Back to Store</span>
+                </a>
+            </nav>
+
+            <!-- Sidebar Footer: Admin user info -->
+            <div class="admin-sidebar-footer">
+                <div class="admin-user-avatar">
+                    <i class="bi bi-person-fill"></i>
+                </div>
+                <div class="admin-user-info">
+                    <div class="name" id="adminName">Admin User</div>
+                    <div class="role">Administrator</div>
+                </div>
+                <button class="btn btn-link text-white p-0" onclick="logout()" title="Logout">
+                    <i class="bi bi-box-arrow-right"></i>
+                </button>
+            </div>
+        </aside>
+
+        <!-- =====================================================================
+             MAIN CONTENT AREA
+             Dynamic content area that changes based on selected section
+        ===================================================================== -->
+        <main class="admin-content">
+            <!-- Content Header -->
+            <header class="admin-header">
+                <!-- Mobile sidebar toggle -->
+                <button class="sidebar-toggle" onclick="toggleSidebar()">
+                    <i class="bi bi-list"></i>
+                </button>
+                <h1 id="pageTitle">Dashboard</h1>
+                <div id="headerActions"></div>
+            </header>
+
+            <!-- Content Body -->
+            <div class="admin-body">
+
+                <!-- =============================================================
+                     DASHBOARD SECTION
+                     Statistics overview and recent orders
+                ============================================================= -->
+                <section id="dashboardSection" class="admin-section">
+                    <!-- Stats Cards Grid -->
+                    <div class="stats-grid" id="statsGrid">
+                        <!-- Stats cards loaded dynamically by admin.js -->
+                        <div class="admin-loading">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Order Status Breakdown -->
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="status-breakdown" id="statusBreakdown">
+                                <h5>Orders by Status</h5>
+                                <!-- Status items loaded dynamically -->
+                            </div>
+                        </div>
+                        <div class="col-md-8">
+                            <!-- Recent Orders -->
+                            <div class="admin-card">
+                                <div class="admin-card-header">
+                                    <h5>Recent Orders</h5>
+                                    <a href="#orders" class="btn btn-sm btn-outline-primary">View All</a>
+                                </div>
+                                <div class="admin-card-body">
+                                    <div class="admin-table-wrapper">
+                                        <table class="admin-table" id="recentOrdersTable">
+                                            <thead>
+                                                <tr>
+                                                    <th>Order #</th>
+                                                    <th>Customer</th>
+                                                    <th>Total</th>
+                                                    <th>Status</th>
+                                                    <th>Date</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <!-- Recent orders loaded dynamically -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- =============================================================
+                     PRODUCTS SECTION
+                     Product management with add/edit/delete
+                ============================================================= -->
+                <section id="productsSection" class="admin-section" style="display: none;">
+                    <div class="admin-card">
+                        <div class="admin-card-header">
+                            <h5>All Products</h5>
+                            <div class="table-controls">
+                                <!-- Search -->
+                                <div class="input-group search-input">
+                                    <input type="text" class="form-control" id="productSearch"
+                                           placeholder="Search products...">
+                                    <button class="btn btn-outline-secondary" type="button"
+                                            onclick="searchProducts()">
+                                        <i class="bi bi-search"></i>
+                                    </button>
+                                </div>
+                                <!-- Category Filter -->
+                                <select class="form-select filter-select" id="productCategoryFilter"
+                                        onchange="filterProducts()">
+                                    <option value="">All Categories</option>
+                                    <option value="Electronics">Electronics</option>
+                                    <option value="Computers">Computers</option>
+                                    <option value="Fashion">Fashion</option>
+                                    <option value="Home & Kitchen">Home & Kitchen</option>
+                                    <option value="Books">Books</option>
+                                </select>
+                                <!-- Add Product Button -->
+                                <button class="btn btn-primary" onclick="showAddProductModal()">
+                                    <i class="bi bi-plus-lg me-1"></i> Add Product
+                                </button>
+                            </div>
+                        </div>
+                        <div class="admin-card-body">
+                            <div class="admin-table-wrapper">
+                                <table class="admin-table" id="productsTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Image</th>
+                                            <th>Name</th>
+                                            <th>Category</th>
+                                            <th>Price</th>
+                                            <th>Stock</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Products loaded dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <!-- Pagination -->
+                        <div class="admin-pagination" id="productsPagination">
+                            <span class="page-info"></span>
+                            <nav>
+                                <ul class="pagination pagination-sm mb-0"></ul>
+                            </nav>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- =============================================================
+                     ORDERS SECTION
+                     Order management with status updates
+                ============================================================= -->
+                <section id="ordersSection" class="admin-section" style="display: none;">
+                    <div class="admin-card">
+                        <div class="admin-card-header">
+                            <h5>All Orders</h5>
+                            <div class="table-controls">
+                                <!-- Search -->
+                                <div class="input-group search-input">
+                                    <input type="text" class="form-control" id="orderSearch"
+                                           placeholder="Search by order # or email...">
+                                    <button class="btn btn-outline-secondary" type="button"
+                                            onclick="searchOrders()">
+                                        <i class="bi bi-search"></i>
+                                    </button>
+                                </div>
+                                <!-- Status Filter -->
+                                <select class="form-select filter-select" id="orderStatusFilter"
+                                        onchange="filterOrders()">
+                                    <option value="">All Statuses</option>
+                                    <option value="pending">Pending</option>
+                                    <option value="confirmed">Confirmed</option>
+                                    <option value="processing">Processing</option>
+                                    <option value="shipped">Shipped</option>
+                                    <option value="out_for_delivery">Out for Delivery</option>
+                                    <option value="delivered">Delivered</option>
+                                    <option value="cancelled">Cancelled</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="admin-card-body">
+                            <div class="admin-table-wrapper">
+                                <table class="admin-table" id="ordersTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Order #</th>
+                                            <th>Customer</th>
+                                            <th>Items</th>
+                                            <th>Total</th>
+                                            <th>Payment</th>
+                                            <th>Status</th>
+                                            <th>Date</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Orders loaded dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <!-- Pagination -->
+                        <div class="admin-pagination" id="ordersPagination">
+                            <span class="page-info"></span>
+                            <nav>
+                                <ul class="pagination pagination-sm mb-0"></ul>
+                            </nav>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- =============================================================
+                     USERS SECTION
+                     User management with status toggle
+                ============================================================= -->
+                <section id="usersSection" class="admin-section" style="display: none;">
+                    <div class="admin-card">
+                        <div class="admin-card-header">
+                            <h5>All Users</h5>
+                            <div class="table-controls">
+                                <!-- Search -->
+                                <div class="input-group search-input">
+                                    <input type="text" class="form-control" id="userSearch"
+                                           placeholder="Search by name or email...">
+                                    <button class="btn btn-outline-secondary" type="button"
+                                            onclick="searchUsers()">
+                                        <i class="bi bi-search"></i>
+                                    </button>
+                                </div>
+                                <!-- Status Filter -->
+                                <select class="form-select filter-select" id="userStatusFilter"
+                                        onchange="filterUsers()">
+                                    <option value="">All Users</option>
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                    <option value="admin">Admins Only</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="admin-card-body">
+                            <div class="admin-table-wrapper">
+                                <table class="admin-table" id="usersTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Email</th>
+                                            <th>Phone</th>
+                                            <th>Orders</th>
+                                            <th>Total Spent</th>
+                                            <th>Status</th>
+                                            <th>Joined</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Users loaded dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <!-- Pagination -->
+                        <div class="admin-pagination" id="usersPagination">
+                            <span class="page-info"></span>
+                            <nav>
+                                <ul class="pagination pagination-sm mb-0"></ul>
+                            </nav>
+                        </div>
+                    </div>
+                </section>
+
+            </div><!-- /.admin-body -->
+        </main><!-- /.admin-content -->
+    </div><!-- /.admin-wrapper -->
+
+    <!-- =========================================================================
+         MODALS
+         Popups for viewing/editing data
+    ========================================================================= -->
+
+    <!-- Order Details Modal -->
+    <div class="modal fade admin-modal" id="orderModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Order Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="orderModalBody">
+                    <!-- Order details loaded dynamically -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="updateOrderStatusBtn"
+                            onclick="showUpdateStatusForm()">Update Status</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Details Modal -->
+    <div class="modal fade admin-modal" id="userModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">User Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="userModalBody">
+                    <!-- User details loaded dynamically -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Form Modal -->
+    <div class="modal fade admin-modal" id="productModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="productModalTitle">Add Product</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="productForm" class="admin-form">
+                        <input type="hidden" id="productId">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <!-- Product Name -->
+                                <div class="mb-3">
+                                    <label for="productName" class="form-label">Product Name *</label>
+                                    <input type="text" class="form-control" id="productName" required>
+                                </div>
+                                <!-- Description -->
+                                <div class="mb-3">
+                                    <label for="productDescription" class="form-label">Description *</label>
+                                    <textarea class="form-control" id="productDescription" rows="4" required></textarea>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <!-- Category -->
+                                <div class="mb-3">
+                                    <label for="productCategory" class="form-label">Category *</label>
+                                    <select class="form-select" id="productCategory" required>
+                                        <option value="">Select Category</option>
+                                        <option value="Electronics">Electronics</option>
+                                        <option value="Computers">Computers</option>
+                                        <option value="Fashion">Fashion</option>
+                                        <option value="Home & Kitchen">Home & Kitchen</option>
+                                        <option value="Books">Books</option>
+                                    </select>
+                                </div>
+                                <!-- Brand -->
+                                <div class="mb-3">
+                                    <label for="productBrand" class="form-label">Brand</label>
+                                    <input type="text" class="form-control" id="productBrand">
+                                </div>
+                                <!-- SKU -->
+                                <div class="mb-3">
+                                    <label for="productSku" class="form-label">SKU</label>
+                                    <input type="text" class="form-control" id="productSku">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <!-- Price -->
+                                <div class="mb-3">
+                                    <label for="productPrice" class="form-label">Price (INR) *</label>
+                                    <input type="number" class="form-control" id="productPrice" min="0" step="0.01" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <!-- Original Price -->
+                                <div class="mb-3">
+                                    <label for="productOriginalPrice" class="form-label">Original Price (INR)</label>
+                                    <input type="number" class="form-control" id="productOriginalPrice" min="0" step="0.01">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <!-- Stock -->
+                                <div class="mb-3">
+                                    <label for="productStock" class="form-label">Stock Quantity *</label>
+                                    <input type="number" class="form-control" id="productStock" min="0" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-8">
+                                <!-- Images -->
+                                <div class="mb-3">
+                                    <label for="productImages" class="form-label">Image URLs (comma-separated)</label>
+                                    <input type="text" class="form-control" id="productImages"
+                                           placeholder="https://example.com/image1.jpg, https://example.com/image2.jpg">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <!-- Featured -->
+                                <div class="mb-3">
+                                    <label class="form-label d-block">Options</label>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="productFeatured">
+                                        <label class="form-check-label" for="productFeatured">Featured Product</label>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="productActive" checked>
+                                        <label class="form-check-label" for="productActive">Active</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="saveProduct()">Save Product</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Update Order Status Modal -->
+    <div class="modal fade" id="updateStatusModal" tabindex="-1">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Update Status</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="updateOrderId">
+                    <div class="mb-3">
+                        <label for="newOrderStatus" class="form-label">New Status</label>
+                        <select class="form-select" id="newOrderStatus">
+                            <option value="pending">Pending</option>
+                            <option value="confirmed">Confirmed</option>
+                            <option value="processing">Processing</option>
+                            <option value="shipped">Shipped</option>
+                            <option value="out_for_delivery">Out for Delivery</option>
+                            <option value="delivered">Delivered</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="statusNotes" class="form-label">Notes (optional)</label>
+                        <textarea class="form-control" id="statusNotes" rows="2"
+                                  placeholder="e.g., Shipped via BlueDart"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="confirmUpdateStatus()">Update</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Delete Modal -->
+    <div class="modal fade" id="confirmDeleteModal" tabindex="-1">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">Confirm Delete</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="deleteConfirmText">Are you sure you want to delete this item?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================================================================
+         TOAST CONTAINER
+         Notification messages
+    ========================================================================= -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div id="adminToast" class="toast" role="alert">
+            <div class="toast-header">
+                <strong class="me-auto" id="toastTitle">Notification</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body" id="toastMessage"></div>
+        </div>
+    </div>
+
+    <!-- =========================================================================
+         JAVASCRIPT
+         Load utilities, API client, and admin logic
+    ========================================================================= -->
+    <!-- Bootstrap JS (required for modals, toasts, etc.) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Utility functions -->
+    <script src="js/utils.js"></script>
+    <!-- API client -->
+    <script src="js/api.js"></script>
+    <!-- Admin page logic -->
+    <script src="js/admin.js"></script>
+</body>
+</html>

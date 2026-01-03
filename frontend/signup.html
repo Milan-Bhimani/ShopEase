@@ -1,3 +1,73 @@
+<!--
+================================================================================
+ShopEase Sign Up Page (signup.html)
+================================================================================
+
+PURPOSE:
+--------
+New user registration page.
+Creates a new account and automatically logs in the user.
+
+REGISTRATION FLOW:
+------------------
+1. User fills out form:
+   - First name (required)
+   - Last name (required)
+   - Email (required, validated)
+   - Phone (optional, validated if provided)
+   - Password (required, strength validated)
+   - Confirm password (required, must match)
+   - Terms agreement checkbox (required)
+
+2. Client-side validation:
+   - Email format check
+   - Phone format check (if provided)
+   - Password strength (8+ chars, upper, lower, digit)
+   - Password match confirmation
+
+3. Submit: POST /api/auth/register
+
+4. On success:
+   - Token stored in localStorage
+   - Redirect to home page
+
+PASSWORD REQUIREMENTS:
+----------------------
+- Minimum 8 characters
+- At least one uppercase letter (A-Z)
+- At least one lowercase letter (a-z)
+- At least one digit (0-9)
+
+These are validated client-side in validatePassword()
+and server-side in the backend.
+
+FORM VALIDATION:
+----------------
+Uses Bootstrap's is-invalid class for error states.
+Invalid feedback shown below each field.
+
+PASSWORD VISIBILITY:
+--------------------
+Both password fields have show/hide toggle.
+Same togglePassword() function handles both.
+
+UI COMPONENTS:
+--------------
+1. Form with two columns for first/last name
+2. Email input with validation
+3. Phone input (optional)
+4. Password + Confirm Password with toggles
+5. Terms checkbox with links to policies
+6. Submit button with loading spinner
+7. Link to login page
+
+SECURITY:
+---------
+- Already authenticated users redirected away
+- Password not stored until form submit
+- Phone is optional (privacy consideration)
+- Terms must be explicitly accepted
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -76,7 +146,7 @@
                 <div class="mb-3 form-check">
                     <input type="checkbox" class="form-check-input" id="terms" required>
                     <label class="form-check-label" for="terms">
-                        I agree to the <a href="#" class="text-primary">Terms of Service</a> and <a href="#" class="text-primary">Privacy Policy</a>
+                        I agree to the <a href="/pages/terms.html" class="text-primary">Terms of Service</a> and <a href="/pages/privacy.html" class="text-primary">Privacy Policy</a>
                     </label>
                 </div>
 
@@ -94,57 +164,6 @@
         </div>
     </div>
 
-    <!-- OTP Verification Modal -->
-    <div class="modal fade" id="otpModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title"><i class="bi bi-envelope-check me-2"></i>Verify Your Email</h5>
-                </div>
-                <div class="modal-body text-center py-4">
-                    <div class="mb-3">
-                        <i class="bi bi-envelope-paper text-primary display-4"></i>
-                    </div>
-                    <p class="mb-1">We've sent a verification code to:</p>
-                    <p class="fw-bold mb-3" id="otp-email-display"></p>
-
-                    <div id="otp-error" class="alert alert-danger d-none mb-3"></div>
-
-                    <div class="mb-4">
-                        <label class="form-label">Enter 6-digit OTP</label>
-                        <div class="d-flex justify-content-center gap-2" id="otp-inputs">
-                            <input type="text" class="form-control text-center otp-input" maxlength="1" style="width: 45px; height: 50px; font-size: 1.5rem;" oninput="handleOtpInput(this, 0)">
-                            <input type="text" class="form-control text-center otp-input" maxlength="1" style="width: 45px; height: 50px; font-size: 1.5rem;" oninput="handleOtpInput(this, 1)">
-                            <input type="text" class="form-control text-center otp-input" maxlength="1" style="width: 45px; height: 50px; font-size: 1.5rem;" oninput="handleOtpInput(this, 2)">
-                            <input type="text" class="form-control text-center otp-input" maxlength="1" style="width: 45px; height: 50px; font-size: 1.5rem;" oninput="handleOtpInput(this, 3)">
-                            <input type="text" class="form-control text-center otp-input" maxlength="1" style="width: 45px; height: 50px; font-size: 1.5rem;" oninput="handleOtpInput(this, 4)">
-                            <input type="text" class="form-control text-center otp-input" maxlength="1" style="width: 45px; height: 50px; font-size: 1.5rem;" oninput="handleOtpInput(this, 5)">
-                        </div>
-                    </div>
-
-                    <p class="text-muted small mb-3">
-                        Code expires in <span id="otp-timer" class="fw-bold text-danger">10:00</span>
-                    </p>
-
-                    <button type="button" class="btn btn-primary w-100 mb-3" id="verify-otp-btn" onclick="verifyOtp()">
-                        <span id="verify-btn-text">Verify & Create Account</span>
-                        <span id="verify-btn-spinner" class="spinner-border spinner-border-sm d-none"></span>
-                    </button>
-
-                    <p class="small text-muted mb-0">
-                        Didn't receive the code?
-                        <button type="button" class="btn btn-link btn-sm p-0" id="resend-btn" onclick="resendOtp()">Resend OTP</button>
-                    </p>
-                </div>
-                <div class="modal-footer justify-content-center border-0">
-                    <button type="button" class="btn btn-outline-secondary" onclick="cancelOtpVerification()">
-                        <i class="bi bi-arrow-left me-1"></i>Back to Sign Up
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/js/api.js"></script>
     <script src="/js/utils.js"></script>
@@ -153,39 +172,6 @@
         if (API.isAuthenticated()) {
             window.location.href = '/';
         }
-
-        // OTP verification state
-        let otpModal = null;
-        let otpTimerInterval = null;
-        let pendingRegistration = null;
-
-        document.addEventListener('DOMContentLoaded', () => {
-            otpModal = new bootstrap.Modal(document.getElementById('otpModal'));
-
-            // Handle paste in OTP inputs
-            document.getElementById('otp-inputs').addEventListener('paste', (e) => {
-                e.preventDefault();
-                const paste = (e.clipboardData || window.clipboardData).getData('text');
-                const digits = paste.replace(/\D/g, '').slice(0, 6);
-                const inputs = document.querySelectorAll('.otp-input');
-                digits.split('').forEach((digit, i) => {
-                    if (inputs[i]) inputs[i].value = digit;
-                });
-                if (digits.length === 6) {
-                    verifyOtp();
-                }
-            });
-
-            // Handle backspace in OTP inputs
-            document.querySelectorAll('.otp-input').forEach((input, index) => {
-                input.addEventListener('keydown', (e) => {
-                    if (e.key === 'Backspace' && !input.value && index > 0) {
-                        const inputs = document.querySelectorAll('.otp-input');
-                        inputs[index - 1].focus();
-                    }
-                });
-            });
-        });
 
         function togglePassword(fieldId) {
             const input = document.getElementById(fieldId);
@@ -206,50 +192,6 @@
             if (!/[a-z]/.test(password)) return false;
             if (!/\d/.test(password)) return false;
             return true;
-        }
-
-        function handleOtpInput(input, index) {
-            // Only allow digits
-            input.value = input.value.replace(/\D/g, '');
-
-            // Move to next input
-            if (input.value && index < 5) {
-                const inputs = document.querySelectorAll('.otp-input');
-                inputs[index + 1].focus();
-            }
-
-            // Auto-verify when all 6 digits entered
-            const inputs = document.querySelectorAll('.otp-input');
-            const otp = Array.from(inputs).map(i => i.value).join('');
-            if (otp.length === 6) {
-                verifyOtp();
-            }
-        }
-
-        function startOtpTimer(seconds) {
-            if (otpTimerInterval) clearInterval(otpTimerInterval);
-
-            let remaining = seconds;
-            const timerEl = document.getElementById('otp-timer');
-            const resendBtn = document.getElementById('resend-btn');
-
-            const updateTimer = () => {
-                const mins = Math.floor(remaining / 60);
-                const secs = remaining % 60;
-                timerEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
-
-                if (remaining <= 0) {
-                    clearInterval(otpTimerInterval);
-                    timerEl.textContent = 'Expired';
-                    resendBtn.disabled = false;
-                } else {
-                    resendBtn.disabled = remaining > 540; // Enable after 1 minute
-                }
-                remaining--;
-            };
-
-            updateTimer();
-            otpTimerInterval = setInterval(updateTimer, 1000);
         }
 
         async function handleSignup(e) {
@@ -297,33 +239,21 @@
 
             // Show loading
             signupBtn.disabled = true;
-            btnText.textContent = 'Sending verification code...';
+            btnText.textContent = 'Creating account...';
             btnSpinner.classList.remove('d-none');
 
             try {
-                // Store pending registration data
-                pendingRegistration = {
+                // Direct registration without OTP
+                await API.Auth.register({
                     email,
                     password,
                     first_name: firstName,
                     last_name: lastName,
                     phone: phone || null,
-                };
+                });
 
-                // Send OTP
-                const response = await API.Auth.sendOTP(email, 'register');
-
-                // Show OTP modal
-                document.getElementById('otp-email-display').textContent = email;
-                clearOtpInputs();
-                document.getElementById('otp-error').classList.add('d-none');
-                otpModal.show();
-                startOtpTimer(response.expires_in);
-
-                // Focus first OTP input
-                setTimeout(() => {
-                    document.querySelector('.otp-input').focus();
-                }, 500);
+                Utils.showToast('Account created successfully!');
+                window.location.href = '/';
 
             } catch (error) {
                 errorDiv.textContent = error.message;
@@ -333,83 +263,6 @@
                 btnText.textContent = 'Create Account';
                 btnSpinner.classList.add('d-none');
             }
-        }
-
-        function clearOtpInputs() {
-            document.querySelectorAll('.otp-input').forEach(input => {
-                input.value = '';
-            });
-        }
-
-        async function verifyOtp() {
-            const inputs = document.querySelectorAll('.otp-input');
-            const otp = Array.from(inputs).map(i => i.value).join('');
-
-            if (otp.length !== 6) {
-                return;
-            }
-
-            const btnText = document.getElementById('verify-btn-text');
-            const btnSpinner = document.getElementById('verify-btn-spinner');
-            const btn = document.getElementById('verify-otp-btn');
-            const errorDiv = document.getElementById('otp-error');
-
-            btn.disabled = true;
-            btnText.textContent = 'Verifying...';
-            btnSpinner.classList.remove('d-none');
-            errorDiv.classList.add('d-none');
-
-            try {
-                // Verify OTP
-                await API.Auth.verifyOTP(pendingRegistration.email, otp, 'register');
-
-                btnText.textContent = 'Creating account...';
-
-                // Create account
-                await API.Auth.register(pendingRegistration);
-
-                otpModal.hide();
-                Utils.showToast('Account created successfully!');
-                window.location.href = '/';
-
-            } catch (error) {
-                errorDiv.textContent = error.message;
-                errorDiv.classList.remove('d-none');
-                clearOtpInputs();
-                document.querySelector('.otp-input').focus();
-            } finally {
-                btn.disabled = false;
-                btnText.textContent = 'Verify & Create Account';
-                btnSpinner.classList.add('d-none');
-            }
-        }
-
-        async function resendOtp() {
-            const resendBtn = document.getElementById('resend-btn');
-            const errorDiv = document.getElementById('otp-error');
-
-            resendBtn.disabled = true;
-            resendBtn.textContent = 'Sending...';
-
-            try {
-                const response = await API.Auth.resendOTP(pendingRegistration.email, 'register');
-                clearOtpInputs();
-                errorDiv.classList.add('d-none');
-                startOtpTimer(response.expires_in);
-                Utils.showToast('OTP sent successfully!');
-                document.querySelector('.otp-input').focus();
-            } catch (error) {
-                errorDiv.textContent = error.message;
-                errorDiv.classList.remove('d-none');
-            } finally {
-                resendBtn.textContent = 'Resend OTP';
-            }
-        }
-
-        function cancelOtpVerification() {
-            if (otpTimerInterval) clearInterval(otpTimerInterval);
-            pendingRegistration = null;
-            otpModal.hide();
         }
     </script>
 </body>

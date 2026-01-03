@@ -1,3 +1,72 @@
+<!--
+================================================================================
+ShopEase Home Page (index.html)
+================================================================================
+
+PURPOSE:
+--------
+Main landing page of the e-commerce application.
+This is the entry point for most users.
+
+FEATURES:
+---------
+1. NAVIGATION BAR (Navbar)
+   - Brand logo with link to home
+   - Search bar with live suggestions (like Google/Flipkart)
+   - Login/Signup buttons (for guests)
+   - User dropdown menu (for logged-in users)
+   - Cart icon with badge showing item count
+
+2. CATEGORY BAR
+   - Horizontal scrollable list of product categories
+   - Dynamically loaded from API
+   - Shows product count per category
+   - Click to filter products by category
+
+3. HERO BANNER
+   - Full-width promotional banner
+   - Tagline and branding
+
+4. PRODUCT GRID
+   - Responsive grid layout (2/3/4 columns based on screen)
+   - Skeleton loading for better UX
+   - Sort options (price, name)
+   - "Load More" pagination
+   - Category and search filtering
+
+5. FOOTER
+   - About links
+   - Help/Support links
+   - Policy links
+   - Social media links
+
+JAVASCRIPT FUNCTIONS:
+---------------------
+- loadCategories(): Fetches and renders category bar
+- loadProducts(): Fetches products with pagination and filtering
+- filterByCategory(): Filters products by selected category
+- handleSearch(): Redirects to search results page
+- handleSort(): Client-side sorting (price, name)
+- showSearchSuggestions(): Live search dropdown
+- highlightMatch(): Highlights search term in suggestions
+
+DATA FLOW:
+----------
+1. Page loads → DOMContentLoaded fires
+2. In parallel: loadCategories() + loadProducts()
+3. User interactions trigger:
+   - filterByCategory() → resets page, loads filtered products
+   - handleSort() → client-side sort of loaded products
+   - loadMoreProducts() → increments page, appends products
+
+DEPENDENCIES:
+-------------
+- Bootstrap 5.3.2 (CSS + JS)
+- Bootstrap Icons 1.11.1
+- /css/styles.css (custom styles)
+- /js/api.js (API client)
+- /js/utils.js (utilities)
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -82,17 +151,6 @@
     <!-- Main Content -->
     <main class="container py-4">
 
-        <!-- Featured Products -->
-        <section class="mb-5">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h4 class="mb-0"><i class="bi bi-star-fill text-warning me-2"></i>Featured Products</h4>
-                <a href="#" class="text-decoration-none" onclick="showAllProducts()">View All <i class="bi bi-arrow-right"></i></a>
-            </div>
-            <div class="row" id="featured-products">
-                <!-- Products loaded dynamically -->
-            </div>
-        </section>
-
         <!-- All Products -->
         <section id="products">
             <div class="d-flex justify-content-between align-items-center mb-3">
@@ -125,28 +183,27 @@
             <div class="row">
                 <div class="col-md-3 col-6 mb-4">
                     <h6>ABOUT</h6>
-                    <a href="#">Contact Us</a>
-                    <a href="#">About Us</a>
-                    <a href="#">Careers</a>
+                    <a href="/pages/contact.html">Contact Us</a>
+                    <a href="/pages/about.html">About Us</a>
+                    <a href="/pages/careers.html">Careers</a>
                 </div>
                 <div class="col-md-3 col-6 mb-4">
                     <h6>HELP</h6>
-                    <a href="#">Payments</a>
-                    <a href="#">Shipping</a>
-                    <a href="#">Returns</a>
-                    <a href="#">FAQ</a>
+                    <a href="/pages/payments.html">Payments</a>
+                    <a href="/pages/shipping.html">Shipping</a>
+                    <a href="/pages/help.html">FAQ & Help</a>
                 </div>
                 <div class="col-md-3 col-6 mb-4">
                     <h6>POLICY</h6>
-                    <a href="#">Return Policy</a>
-                    <a href="#">Terms of Use</a>
-                    <a href="#">Privacy</a>
+                    <a href="/pages/returns.html">Return Policy</a>
+                    <a href="/pages/terms.html">Terms of Use</a>
+                    <a href="/pages/privacy.html">Privacy Policy</a>
                 </div>
                 <div class="col-md-3 col-6 mb-4">
                     <h6>SOCIAL</h6>
-                    <a href="#"><i class="bi bi-facebook me-2"></i>Facebook</a>
-                    <a href="#"><i class="bi bi-twitter me-2"></i>Twitter</a>
-                    <a href="#"><i class="bi bi-instagram me-2"></i>Instagram</a>
+                    <a href="https://facebook.com" target="_blank"><i class="bi bi-facebook me-2"></i>Facebook</a>
+                    <a href="https://twitter.com" target="_blank"><i class="bi bi-twitter me-2"></i>Twitter</a>
+                    <a href="https://instagram.com" target="_blank"><i class="bi bi-instagram me-2"></i>Instagram</a>
                 </div>
             </div>
             <hr class="border-secondary">
@@ -172,7 +229,6 @@
             // Load all data in parallel for faster page load
             await Promise.all([
                 loadCategories(),
-                loadFeaturedProducts(),
                 loadProducts()
             ]);
         });
@@ -275,23 +331,6 @@
                 `;
             } catch (error) {
                 console.error('Error loading categories:', error);
-            }
-        }
-
-        // Load featured products
-        async function loadFeaturedProducts() {
-            const container = document.getElementById('featured-products');
-            container.innerHTML = Utils.createSkeletonCards(4);
-
-            try {
-                const products = await API.Products.getFeatured(4);
-                if (products.length === 0) {
-                    container.innerHTML = '<p class="text-muted">No featured products available.</p>';
-                    return;
-                }
-                container.innerHTML = products.map(p => Utils.createProductCard(p)).join('');
-            } catch (error) {
-                container.innerHTML = '<p class="text-danger">Error loading featured products.</p>';
             }
         }
 

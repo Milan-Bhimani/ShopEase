@@ -1,3 +1,91 @@
+<!--
+================================================================================
+ShopEase Shopping Cart Page (cart.html)
+================================================================================
+
+PURPOSE:
+--------
+Displays the user's shopping cart with all items.
+Allows quantity changes, item removal, and proceeding to checkout.
+
+AUTHENTICATION:
+---------------
+This is a PROTECTED page. Users must be logged in.
+Uses Utils.requireAuth() to redirect to login if not authenticated.
+
+PAGE LAYOUT:
+------------
+TWO-COLUMN LAYOUT (on desktop):
+
+LEFT COLUMN (col-lg-8):
+  - Item count header with Clear Cart button
+  - List of cart items, each showing:
+    - Product image (clickable to product page)
+    - Product name
+    - Out of stock warning (if applicable)
+    - Quantity selector (+/- buttons)
+    - Remove button
+    - Subtotal and per-item price
+
+RIGHT COLUMN (col-lg-4):
+  - Order summary card:
+    - Price for N items
+    - Delivery charges (FREE if subtotal >= ₹500)
+    - Progress to free delivery
+    - Total amount
+    - Proceed to Checkout button
+    - Continue Shopping link
+
+EMPTY CART STATE:
+-----------------
+If no items in cart, shows:
+- Empty cart icon
+- "Your cart is empty" message
+- Continue Shopping button
+
+JAVASCRIPT FUNCTIONS:
+---------------------
+- loadCart(): Fetches cart data from API
+- renderCart(): Renders cart items and summary
+- updateQuantity(): Changes item quantity
+- removeItem(): Removes single item from cart
+- clearCart(): Removes all items (with confirmation)
+
+REAL-TIME UPDATES:
+------------------
+When quantity is changed:
+1. API call to update cart
+2. Re-render entire cart (for correct totals)
+3. Update cart badge in navbar
+
+PRICING LOGIC:
+--------------
+- Subtotal: Sum of (item.price * item.quantity)
+- Shipping: ₹40 if subtotal < ₹500, else FREE
+- Total: Subtotal + Shipping
+
+DATA STRUCTURE:
+---------------
+Cart object from API:
+{
+  items: [
+    {
+      product_id: "abc123",
+      product_name: "Product Name",
+      product_image: "url",
+      price: 999,
+      quantity: 2,
+      subtotal: 1998,
+      in_stock: true,
+      stock_quantity: 10
+    }
+  ],
+  item_count: 2,
+  subtotal: 1998,
+  shipping: 0,
+  total: 1998
+}
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>

@@ -1,3 +1,117 @@
+<!--
+================================================================================
+ShopEase Checkout Page (checkout.html)
+================================================================================
+
+PURPOSE:
+--------
+Final step before order placement.
+Collects shipping address and payment method.
+
+AUTHENTICATION:
+---------------
+PROTECTED page. Requires login.
+Redirects to login if not authenticated.
+
+CHECKOUT STEPS:
+---------------
+1. DELIVERY ADDRESS (Step 1)
+   - Select from saved addresses
+   - Add new address via modal
+   - First address becomes default
+
+2. PAYMENT METHOD (Step 2)
+   - Credit/Debit Card (with full form)
+   - UPI (with ID verification)
+   - Net Banking (bank selection)
+   - Cash on Delivery (COD)
+
+3. ORDER SUMMARY (Step 3)
+   - Preview of cart items
+   - Quantity display
+   - Price breakdown
+
+PAYMENT METHODS:
+----------------
+CARD:
+- Cardholder name
+- 16-digit card number (auto-formatted with spaces)
+- Expiry date (MM/YY format)
+- CVV (3-4 digits, masked)
+- Card type detection (Visa/MC/RuPay based on first digit)
+
+UPI:
+- UPI ID input (format: username@provider)
+- Verify button (simulated verification)
+- UPI app selection (GPay, PhonePe, Paytm)
+
+NET BANKING:
+- Quick bank buttons (SBI, HDFC, ICICI, Axis)
+- Dropdown for other banks
+- Shows "will redirect to bank" message
+
+COD:
+- No additional input required
+- Payment collected at delivery
+
+NOTE: Payment is SIMULATED - no real payment gateway.
+All orders are marked as paid immediately.
+
+ADDRESS MODAL:
+--------------
+Fields:
+- Full Name*
+- Phone*
+- Address Line 1*
+- Address Line 2
+- Landmark
+- City*
+- State*
+- Pincode*
+- Address Type (Home/Work/Other)
+
+Validation:
+- Phone format check
+- Pincode format check
+- Required field validation
+
+PRICE SUMMARY:
+--------------
+Same as cart page:
+- Subtotal
+- Delivery (FREE if >= ₹500)
+- Total
+
+PLACE ORDER FLOW:
+-----------------
+1. Validate address selected
+2. Validate payment method details
+3. Build payment info object
+4. POST /api/orders with address_id and payment
+5. Store order result in localStorage
+6. Redirect to confirmation.html
+
+JAVASCRIPT FUNCTIONS:
+---------------------
+Address:
+- loadCheckoutData(): Loads cart and addresses
+- selectAddress(): Marks address as selected
+- showAddressModal(): Opens add address modal
+- saveAddress(): Validates and saves new address
+
+Payment:
+- selectPayment(): Switches payment method
+- formatCardNumber(): Adds spaces to card number
+- formatExpiry(): Formats MM/YY
+- toggleCvv(): Shows/hides CVV
+- validateCardDetails(): Validates all card fields
+- verifyUpi(): Simulates UPI verification
+- selectUpiApp(): Selects UPI app
+- selectBank(): Selects net banking bank
+
+Order:
+- placeOrder(): Validates and submits order
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
